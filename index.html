@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+    <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width,initial-scale=1.0">
+            <title>DONATE+ | Give Today, Change Tomorrow
+            </title>
+
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
+                :root {
+                    --np:polygon(0.00% 6.68%,0.74% 3.71%,1.60% 1.98%,2.21% 0.00%,3.32% 1.73%,4.31% 3.22%,5.41% 4.46%,6.40% 5.45%,7.50% 5.94%,8.49% 6.44%,9.59% 6.93%,
+                    10.58% 7.67%,11.69% 8.66%,12.67% 9.41%,13.78% 9.90%,14.76% 9.16%,15.74% 7.92%,16.73% 6.93%,17.84% 7.43%,18.82% 8.42%,19.93% 9.16%,20.91% 9.90%,
+                    22.02% 10.89%,23.00% 12.13%,23.99% 13.12%,25.09% 14.11%,26.08% 15.10%,27.18% 16.09%,28.17% 16.83%,29.27% 17.57%,30.26% 18.07%,31.37% 18.56%,
+                    32.35% 19.06%,33.46% 19.80%,34.44% 21.29%,35.42% 23.02%,36.41% 24.75%,37.39% 26.49%,38.50% 26.98%,39.48% 27.23%,40.59% 27.48%,41.57% 27.72%,
+                    42.56% 28.96%,43.54% 30.20%,44.53% 30.69%,45.39% 29.21%,46.25% 27.72%,47.23% 27.48%,48.22% 28.22%,49.20% 28.96%,50.18% 29.95%,51.05% 31.68%,
+                    51.78% 33.91%,52.77% 35.40%,53.87% 36.39%,54.98% 37.13%,56.09% 37.87%,57.20% 39.11%,58.30% 40.59%,59.41% 41.83%,60.52% 43.07%,61.50% 45.05%,
+                    62.48% 47.52%,63.47% 50.00%,64.58% 52.72%,65.68% 52.48%,66.79% 51.98%,67.90% 51.49%,69.00% 50.74%,70.11% 51.24%,71.22% 51.98%,72.32% 52.72%,
+                    73.19% 54.46%,73.92% 56.44%,74.54% 57.92%,75.52% 58.42%,76.63% 58.66%,77.61% 58.66%,78.72% 58.42%,79.70% 58.17%,80.69% 57.92%,81.67% 57.67%,
+                    82.66% 58.17%,83.64% 59.41%,84.62% 60.40%,85.61% 61.39%,86.59% 62.13%,87.58% 62.87%,88.56% 63.37%,89.54% 63.86%,90.53% 63.86%,91.51% 63.61%,
+                    92.50% 63.61%,93.48% 63.37%,94.46% 63.12%,95.45% 62.62%,96.43% 62.38%,97.42% 62.62%,98.40% 63.12%,99.63% 63.61%,99.26% 65.84%,98.89% 68.07%,
+                    98.65% 70.54%,99.02% 72.77%,99.38% 74.75%,99.63% 76.49%,99.14% 78.47%,98.65% 80.69%,98.15% 82.67%,98.52% 84.90%,98.89% 87.13%,99.38% 89.36%,
+                    99.63% 91.58%,99.14% 93.81%,98.77% 96.04%,99.26% 98.02%,100.00% 100.00%,98.28% 99.26%,96.92% 98.76%,95.45% 98.51%,93.97% 99.01%,92.50% 99.50%,
+                    91.02% 99.75%,89.54% 99.50%,88.07% 99.26%,86.59% 98.76%,85.12% 98.51%,83.64% 98.02%,82.16% 97.03%,80.69% 96.04%,79.21% 95.54%,77.74% 95.05%,
+                    76.26% 94.55%,74.78% 94.31%,73.31% 93.81%,71.83% 93.32%,70.36% 92.08%,68.88% 90.59%,67.40% 90.10%,65.93% 90.10%,64.45% 89.60%,62.98% 88.61%,
+                    61.50% 87.62%,60.27% 85.89%,59.29% 84.16%,58.30% 83.42%,57.20% 83.66%,56.09% 83.66%,54.86% 82.92%,53.63% 81.93%,52.52% 80.94%,51.54% 79.46%,
+                    50.55% 78.22%,49.57% 77.23%,48.59% 76.24%,47.60% 75.25%,46.62% 74.75%,45.51% 74.26%,44.40% 73.76%,43.30% 73.76%,42.19% 74.26%,41.21% 74.75%,
+                    40.22% 75.00%,39.24% 74.26%,38.25% 73.51%,37.27% 73.02%,36.29% 72.03%,35.30% 70.54%,34.32% 69.31%,33.33% 68.07%,32.35% 67.33%,31.37% 66.83%,
+                    30.38% 66.58%,29.40% 66.34%,28.29% 65.59%,27.18% 64.60%,26.08% 63.61%,24.97% 62.62%,23.86% 62.13%,22.88% 61.63%,21.77% 61.14%,20.66% 60.15%,
+                    19.56% 59.16%,18.57% 58.17%,17.47% 57.43%,16.48% 56.19%,15.50% 54.95%,14.51% 53.71%,13.53% 52.48%,12.55% 51.24%,11.56% 50.00%,10.58% 49.01%,
+                    9.59% 48.02%,8.49% 47.03%,7.50% 46.04%,6.40% 45.30%,5.54% 44.31%,4.67% 43.07%,3.81% 41.83%,3.08% 40.59%,2.34% 39.11%,1.60% 37.38%,0.86% 35.40%,
+                    0.37% 33.42%,0.00% 31.93%,0.49% 29.70%,0.98% 27.48%,1.60% 25.25%,2.09% 23.51%,2.46% 21.78%,2.83% 20.30%,3.44% 18.56%,4.06% 17.08%,4.67% 15.59%,
+                    4.18% 14.36%,3.57% 12.87%,2.83% 11.63%,1.97% 10.64%,1.11% 9.90%,0.37% 9.41%);
+                    --green:#1f5b3a;
+                    --green2:#2f744a;
+                    --orange:#f28c18;
+                    --cream:#fbfaf6;
+                    --ink:#171915
+                }
+                * {
+                    box-sizing:border-box
+                }
+                html {
+                    scroll-behavior:smooth
+                }
+                body {
+                    margin:0;
+                    overflow-x:hidden;
+                    font-family:'DM Sans',sans-serif;
+                    background:var(--cream);
+                    color:var(--ink)
+                }
+                .serif {
+                    font-family:'Playfair Display',serif
+                }
+                .container {
+                    max-width:1180px;
+                    margin:auto;
+                    padding:0 28px
+                }
+                a {
+                    text-decoration:none
+                }
+                .btn {
+                    display:inline-flex;
+                    align-items:center;
+                    justify-content:center;
+                    gap:8px;
+                    padding:13px 20px;
+                    border-radius:10px;
+                    font-weight:700;
+                    transition:.2s
+                }
+                .btn-green {
+                    background:var(--green);
+                    color:#fff
+                }
+                .btn-green:hover {
+                    background:#17482e
+                }
+                .btn-outline {
+                    border:1px solid #aeb8ae;
+                    color:#1c261f;
+                    background:#fff
+                }
+                .btn-orange {
+                    background:var(--orange);
+                    color:#fff
+                }
+                header {
+                    height:74px;
+                    background:rgba(255,255,255,.97);
+                    border-bottom:1px solid #e8e6df;
+                    position:sticky;
+                    top:0;
+                    z-index:50;
+                    transition:background .35s ease,box-shadow .35s ease,border-color .35s ease
+                }
+                header.glass {
+                    background:rgba(255,255,255,.55);
+                    -webkit-backdrop-filter:blur(14px) saturate(160%);
+                    backdrop-filter:blur(14px) saturate(160%);
+                    box-shadow:0 10px 34px -14px rgba(0,0,0,.22);
+                    border-bottom-color:rgba(255,255,255,.35)
+                }
+                .nav {
+                    height:74px;
+                    display:flex;
+                    align-items:center;
+                    justify-content:space-between;
+                    gap:24px
+                }
+                .brand {
+                    display:flex;
+                    align-items:center;
+                    gap:10px;
+                    color:var(--green);
+                    font-weight:800
+                }
+                .brandmark {
+                    width:38px;
+                    height:38px;
+                    border:2px solid var(--green);
+                    border-radius:50% 50% 45% 45%;
+                    display:grid;
+                    place-items:center;
+                    font-size:19px
+                }
+                .brand small {
+                    display:block;
+                    font-size:9px;
+                    color:#7d857d;
+                    letter-spacing:.6px;
+                    font-weight:600
+                }
+                .navlinks {
+                    display:flex;
+                    gap:28px;
+                    font-size:13px;
+                    font-weight:600
+                }
+                .navlinks a {
+                    color:#353a35
+                }
+                .navlinks a:hover {
+                    color:var(--green)
+                }
+                .phone {
+                    font-size:12px;
+                    display:flex;
+                    align-items:center;
+                    gap:8px
+                }
+                .hero {
+                    min-height:570px;
+                    padding:72px 0 55px;
+                    position:relative;
+                    overflow:hidden;
+                    background:radial-gradient(circle at 85% 30%,#f2eee4 0 16%,transparent 17%),linear-gradient(120deg,#fffdf9,#fbfaf6)
+                }
+                .hero:before {
+                    content:'';
+                    position:absolute;
+                    width:430px;
+                    height:260px;
+                    border-radius:50%;
+                    border:1px dashed #ddd5c7;
+                    right:-100px;
+                    top:110px;
+                    transform:rotate(-12deg)
+                }
+                .hero-grid {
+                    display:grid;
+                    grid-template-columns:1fr 1.08fr;
+                    gap:35px;
+                    align-items:center
+                }
+                .hero-grid>div:first-child {
+                    position:relative;
+                    z-index:3
+                }
+                .eyebrow {
+                    color:var(--green);
+                    font-weight:800;
+                    letter-spacing:1px;
+                    font-size:12px;
+                    text-transform:uppercase
+                }
+                .hero h1 {
+                    font-size:66px;
+                    line-height:1.02;
+                    margin:15px 0 20px;
+                    max-width:620px
+                }
+                .hero h1 span {
+                    color:var(--green)
+                }
+                .hero p {
+                    max-width:500px;
+                    color:#5f665f;
+                    line-height:1.8
+                }
+                .hero-actions {
+                    display:flex;
+                    gap:12px;
+                    margin-top:28px
+                }
+                .faces {
+                    height:410px;
+                    position:relative;
+                    min-width:0
+                }
+                .face {
+                    position:absolute;
+                    border-radius:48% 52% 50% 50%;
+                    overflow:hidden;
+                    border:8px solid #fff;
+                    box-shadow:0 12px 35px #3d4a3d1c
+                }
+                .face img {
+                    width:100%;
+                    height:100%;
+                    object-fit:cover
+                }
+                .face.one {
+                    left:-110px;
+                    right:0;
+                    top:0;
+                    width:auto;
+                    height:auto;
+                    aspect-ratio:1.77;
+                    border:0;
+                    border-radius:0;
+                    box-shadow:none;
+                    overflow:visible;
+                    filter:drop-shadow(0 14px 22px #1f34251c);
+                    z-index:1
+                }
+                .face.one:before,.face.one img {
+                    clip-path:var(--np);
+                    -webkit-mask-image:linear-gradient(to right,transparent 0,#0000002e 14%,#000 46%);
+                    mask-image:linear-gradient(to right,transparent 0,#0000002e 14%,#000 46%)
+                }
+                .face.one:before {
+                    content:'';
+                    position:absolute;
+                    inset:-4px;
+                    background:#fff
+                }
+                .face.one img {
+                    position:relative;
+                    display:block
+                }
+                .dot {
+                    position:absolute;
+                    width:14px;
+                    height:14px;
+                    border-radius:50%
+                }
+                .d1 {
+                    background:#f28c18;
+                    right:50px;
+                    top:15px
+                }
+                .d2 {
+                    background:#37794e;
+                    left:80px;
+                    bottom:65px
+                }
+                .d3 {
+                    background:#ef8b18;
+                    left:18px;
+                    bottom:118px
+                }
+                .features {
+                    margin-top:-1px;
+                    position:relative;
+                    z-index:3
+                }
+                .featurebox {
+                    background:#fff;
+                    border-radius:20px;
+                    box-shadow:0 18px 50px #23352312;
+                    padding:28px;
+                    display:grid;
+                    grid-template-columns:repeat(4,1fr);
+                    border:1px solid #eeeae2
+                }
+                .feature {
+                    padding:0 24px;
+                    border-right:1px solid #eeeae6
+                }
+                .feature:last-child {
+                    border:0
+                }
+                .icon {
+                    width:52px;
+                    height:52px;
+                    border-radius:50%;
+                    display:grid;
+                    place-items:center;
+                    background:#eef3ea;
+                    font-size:23px
+                }
+                .icon.orange {
+                    background:#fff0df
+                }
+                .feature h3 {
+                    font-family:'Playfair Display',serif;
+                    font-size:19px;
+                    margin:16px 0 6px
+                }
+                .feature p {
+                    font-size:12px;
+                    color:#70776f;
+                    line-height:1.7
+                }
+                .section {
+                    padding:85px 0
+                }
+                .about {
+                    display:grid;
+                    grid-template-columns:1fr 1fr;
+                    gap:75px;
+                    align-items:center
+                }
+                .collage {
+                    height:400px;
+                    position:relative
+                }
+                .collage .big {
+                    width:330px;
+                    height:330px;
+                    position:absolute;
+                    left:30px;
+                    top:20px;
+                    border-radius:50%;
+                    object-fit:cover;
+                    border:9px solid white;
+                    box-shadow:0 15px 35px #0001
+                }
+                .collage .small {
+                    width:145px;
+                    height:145px;
+                    border-radius:50%;
+                    object-fit:cover;
+                    border:7px solid white;
+                    position:absolute
+                }
+                .s1 {
+                    right:25px;
+                    top:40px
+                }
+                .s2 {
+                    right:0;
+                    bottom:35px
+                }
+                .impactbubble {
+                    position:absolute;
+                    bottom:18px;
+                    left:20px;
+                    background:var(--green);
+                    color:#fff;
+                    width:105px;
+                    height:105px;
+                    border-radius:50%;
+                    display:grid;
+                    place-items:center;
+                    text-align:center;
+                    font-weight:700
+                }
+                .about h2,.campaigns h2,.stats h2 {
+                    font-size:42px;
+                    line-height:1.1;
+                    margin:12px 0 18px
+                }
+                .about p {
+                    color:#687067;
+                    line-height:1.8;
+                    font-size:14px
+                }
+                .checks {
+                    margin:22px 0;
+                    display:grid;
+                    gap:12px;
+                    font-size:13px
+                }
+                .check {
+                    display:flex;
+                    gap:10px;
+                    align-items:center
+                }
+                .check i {
+                    width:22px;
+                    height:22px;
+                    border-radius:50%;
+                    background:#e9f2e7;
+                    color:var(--green);
+                    display:grid;
+                    place-items:center;
+                    font-style:normal
+                }
+                .campaigns {
+                    text-align:center
+                }
+                .campaign-grid {
+                    display:grid;
+                    grid-template-columns:repeat(3,1fr);
+                    gap:20px;
+                    text-align:left;
+                    margin-top:35px
+                }
+                .card {
+                    background:#fff;
+                    border:1px solid #eee9df;
+                    border-radius:18px;
+                    overflow:hidden;
+                    box-shadow:0 10px 30px #2635260b
+                }
+                .cardimg {
+                    height:180px;
+                    position:relative
+                }
+                .cardimg img {
+                    width:100%;
+                    height:100%;
+                    object-fit:cover
+                }
+                .tag {
+                    position:absolute;
+                    left:14px;
+                    bottom:14px;
+                    background:var(--green);
+                    color:#fff;
+                    border-radius:30px;
+                    padding:5px 10px;
+                    font-size:11px;
+                    font-weight:700
+                }
+                .tag.orange {
+                    background:var(--orange)
+                }
+                .cardbody {
+                    padding:17px
+                }
+                .cardbody h3 {
+                    font-family:'Playfair Display',serif;
+                    font-size:20px
+                }
+                .cardbody p {
+                    font-size:12px;
+                    color:#747a73;
+                    line-height:1.6;
+                    margin:8px 0 15px
+                }
+                .money {
+                    display:flex;
+                    justify-content:space-between;
+                    font-size:11px
+                }
+                .progress {
+                    height:7px;
+                    background:#e6e8e3;
+                    border-radius:10px;
+                    margin:8px 0
+                }
+                .progress div {
+                    height:100%;
+                    background:var(--green);
+                    border-radius:10px
+                }
+                .progress.orange div {
+                    background:var(--orange)
+                }
+                .stats {
+                    background:var(--green);
+                    color:#fff;
+                    border-radius:28px;
+                    margin:10px auto 80px;
+                    max-width:1180px;
+                    padding:48px
+                }
+                .stats-grid {
+                    display:grid;
+                    grid-template-columns:1fr 1.4fr;
+                    gap:55px;
+                    align-items:center
+                }
+                .stat-cards {
+                    display:grid;
+                    grid-template-columns:1fr 1fr;
+                    gap:12px;
+                    margin-top:25px
+                }
+                .stat {
+                    background:#fff;
+                    color:#18201b;
+                    border-radius:14px;
+                    padding:18px
+                }
+                .stat b {
+                    font-family:'Playfair Display',serif;
+                    font-size:23px;
+                    display:block
+                }
+                .stat span {
+                    font-size:11px;
+                    color:#747b75
+                }
+                .nepal {
+                    position:relative;
+                    display:grid;
+                    place-items:center;
+                    padding-top:10px
+                }
+                .mapshape {
+                    width:100%;
+                    height:auto;
+                    aspect-ratio:1.77;
+                    background:linear-gradient(135deg,#b8d39b,#80ad70);
+                    clip-path:var(--np);
+                    position:relative
+                }
+                .pin {
+                    position:absolute;
+                    width:18px;
+                    height:18px;
+                    border:3px solid #fff;
+                    background:var(--orange);
+                    border-radius:50% 50% 50% 0;
+                    transform:rotate(-45deg)
+                }
+                .pin:after {
+                    content:'';
+                    width:5px;
+                    height:5px;
+                    background:#fff;
+                    border-radius:50%;
+                    position:absolute;
+                    left:4px;
+                    top:4px
+                }
+                .p1 {
+                    left:17.7%;
+                    top:53.7%
+                }
+                .p2 {
+                    left:46.8%;
+                    top:49.8%
+                }
+                .p3 {
+                    left:63.2%;
+                    top:62.1%
+                }
+                .p4 {
+                    left:87.3%;
+                    top:89.8%
+                }
+                .locations {
+                    position:absolute;
+                    right:0;
+                    top:8px;
+                    display:grid;
+                    gap:7px;
+                    font-size:11px;
+                    line-height:1.15;
+                    color:#dce9d9;
+                    background:rgba(18,54,36,.18);
+                    padding:10px 12px;
+                    border-radius:12px
+                }
+                .footer {
+                    background:#123624;
+                    color:#c9d4cc;
+                    padding:45px 0
+                }
+                .footergrid {
+                    display:flex;
+                    justify-content:space-between;
+                    gap:30px
+                }
+                .footer h3 {
+                    color:#fff;
+                    font-family:'Playfair Display',serif;
+                    font-size:22px
+                }
+                .auth {
+                    min-height:100vh;
+                    display:grid;
+                    place-items:center;
+                    padding:30px;
+                    background:radial-gradient(circle at 10% 10%,#edf4e9,transparent 25%),#fbfaf6
+                }
+                .authbox {
+                    width:min(920px,100%);
+                    display:grid;
+                    grid-template-columns:1fr 1fr;
+                    background:#fff;
+                    border-radius:24px;
+                    overflow:hidden;
+                    box-shadow:0 20px 70px #20382018;
+                    border:1px solid #ebe7de
+                }
+                .authvisual {
+                    background:var(--green);
+                    color:#fff;
+                    padding:45px;
+                    display:flex;
+                    flex-direction:column;
+                    justify-content:center
+                }
+                .authvisual h1 {
+                    font-size:44px;
+                    line-height:1.05
+                }
+                .authform {
+                    padding:45px
+                }
+                .field {
+                    margin-top:18px
+                }
+                .field label {
+                    display:block;
+                    font-size:12px;
+                    font-weight:700;
+                    margin-bottom:7px
+                }
+                .field input,.field select,.field textarea {
+                    width:100%;
+                    padding:13px;
+                    border:1px solid #ddd9d1;
+                    border-radius:10px;
+                    outline:none
+                }
+                .field input:focus,.field select:focus {
+                    border-color:var(--green)
+                }
+                .dashboard {
+                    background:#f7f7f3;
+                    min-height:100vh
+                }
+                .side {
+                    width:245px;
+                    background:#173c28;
+                    color:#fff;
+                    position:fixed;
+                    left:0;
+                    top:0;
+                    bottom:0;
+                    padding:25px 18px
+                }
+                .side a {
+                    display:block;
+                    color:#cddbd0;
+                    padding:12px 14px;
+                    border-radius:10px;
+                    font-size:13px;
+                    margin-top:5px
+                }
+                .side a.active,.side a:hover {
+                    background:#2d6746;
+                    color:#fff
+                }
+                .dashmain {
+                    margin-left:245px
+                }
+                .dashhead {
+                    height:72px;
+                    background:#fff;
+                    border-bottom:1px solid #e8e5de;
+                    display:flex;
+                    align-items:center;
+                    justify-content:space-between;
+                    padding:0 30px
+                }
+                .dashcontent {
+                    padding:30px
+                }
+                .kpis {
+                    display:grid;
+                    grid-template-columns:repeat(4,1fr);
+                    gap:15px
+                }
+                .kpi {
+                    background:#fff;
+                    border:1px solid #e8e5de;
+                    border-radius:16px;
+                    padding:20px
+                }
+                .kpi b {
+                    font-family:'Playfair Display',serif;
+                    font-size:30px;
+                    display:block
+                }
+                .table {
+                    background:#fff;
+                    border:1px solid #e8e5de;
+                    border-radius:16px;
+                    margin-top:20px;
+                    overflow:auto
+                }
+                .table table {
+                    width:100%;
+                    border-collapse:collapse;
+                    font-size:12px
+                }
+                .table th,.table td {
+                    text-align:left;
+                    padding:15px;
+                    border-bottom:1px solid #eee
+                }
+                .status {
+                    padding:5px 9px;
+                    border-radius:20px;
+                    font-size:10px;
+                    font-weight:700
+                }
+                .available {
+                    background:#e8f4e8;
+                    color:#27713e
+                }
+                .pending {
+                    background:#fff0dc;
+                    color:#b56300
+                }
+                .done {
+                    background:#e9edf7;
+                    color:#40517b
+                }
+                @media(max-width:1100px) {
+                    .phone {
+                        display:none
+                    }
+                }
+                @media(max-width:1100px) {
+                    .container {
+                        padding:0 22px
+                    }
+                    .navlinks {
+                        gap:16px
+                    }
+                    .hero-grid {
+                        grid-template-columns:1fr 1fr;
+                        gap:20px
+                    }
+                    .hero h1 {
+                        font-size:56px
+                    }
+                    .face.one {
+                        left:-70px
+                    }
+                    .faces {
+                        height:345px
+                    }
+                }
+                @media(max-width:900px) {
+                    .navlinks {
+                        display:none
+                    }
+                    .hero-grid,.about,.stats-grid {
+                        grid-template-columns:1fr
+                    }
+                    .hero h1 {
+                        font-size:50px
+                    }
+                    .faces {
+                        height:auto
+                    }
+                    .face.one {
+                        position:relative;
+                        left:0;
+                        right:0;
+                        top:0;
+                        width:100%
+                    }
+                    .face.one:before,.face.one img {
+                        -webkit-mask-image:none;
+                        mask-image:none
+                    }
+                    .featurebox {
+                        grid-template-columns:1fr 1fr
+                    }
+                    .feature {
+                        margin-bottom:20px
+                    }
+                    .campaign-grid {
+                        grid-template-columns:1fr
+                    }
+                    .stats {
+                        margin-left:20px;
+                        margin-right:20px
+                    }
+                    .side {
+                        display:none
+                    }
+                    .dashmain {
+                        margin-left:0
+                    }
+                    .kpis {
+                        grid-template-columns:1fr 1fr
+                    }
+                    .authbox {
+                        grid-template-columns:1fr
+                    }
+                    .authvisual {
+                        display:none
+                    }
+                }
+                @media(max-width:600px) {
+                    .container {
+                        padding:0 18px
+                    }
+                    .hero {
+                        padding-top:45px
+                    }
+                    .hero h1 {
+                        font-size:43px
+                    }
+                    .featurebox {
+                        grid-template-columns:1fr;
+                        padding:20px
+                    }
+                    .feature {
+                        border:0;
+                        border-bottom:1px solid #eee;
+                        padding:15px 5px
+                    }
+                    .about h2,.campaigns h2,.stats h2 {
+                        font-size:33px
+                    }
+                    .collage {
+                        height:340px
+                    }
+                    .collage .big {
+                        width:270px;
+                        height:270px
+                    }
+                    .collage .small {
+                        width:115px;
+                        height:115px
+                    }
+                    .kpis {
+                        grid-template-columns:1fr
+                    }
+                    .dashcontent {
+                        padding:18px
+                    }
+                }
+                
+            </style>
+
+        </head>
+
+        <body>
+
+            <header>
+                <div class="container nav"><a class="brand" href="index.html"><span class="brandmark">♡</span><span>DONATE+<small>Give Today, Change Tomorrow</small></span></a>
+
+                    <nav class="navlinks"><a href="index.html">Home</a><a href="#about">About Us</a><a href="#campaigns">Campaigns</a><a href="find-donations.php">Donate Items</a><a href="donor-dashboard.php">Pages</a><a href="#contact">Contact Us</a>
+                    </nav>
+
+                    <div class="phone">☎ <span>+977 9824850184<br>+977 9815527265<br><small>Kathmandu, Nepal</small></span><a class="btn btn-green" href="register.html">♡ Donate Now</a>
+                    </div>
+                </div>
+            </header>
+
+            <section class="hero">
+                <div class="container hero-grid">
+                    <div>
+                        <div class="eyebrow">Together we can
+                        </div>
+                        <h1>Help Today,<br><span>Hope Forever</span>
+                        </h1>
+                        <p>Donate useful items, help people in need, and be the reason someone smiles today. Every contribution brings hope and changes lives across Nepal.
+                        </p>
+                        <div class="hero-actions"><a class="btn btn-green" href="add-donation.php">♡ Donate Items</a><a class="btn btn-outline" href="find-donations.php">Browse Donations</a>
+                        </div>
+                        <div style="margin-top:25px;font-size:12px;color:#687068">● ● ● ● &nbsp; <b>500+</b> people donated items<br><span style="margin-left:50px">Join hands to create a better Nepal</span>
+                        </div>
+                    </div>
+
+                    <div class="faces"><span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span>
+                        <div class="face one"><img src="https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&w=1000&q=85">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="features container">
+                <div class="featurebox">
+                    <div class="feature">
+                        <div class="icon">♧
+                        </div>
+                        <h3>Donate Items
+                        </h3>
+                        <p>Give unused items like clothes, books, food and more to those in need.
+                        </p>
+                    </div>
+                    <div class="feature">
+                        <div class="icon orange">⌕
+                        </div>
+                        <h3>Find Donations
+                        </h3>
+                        <p>Search available items and request what you or your organization needs.
+                        </p>
+                    </div>
+                    <div class="feature">
+                        <div class="icon">✓
+                        </div>
+                        <h3>Verified & Safe
+                        </h3>
+                        <p>Donors and organizations are verified to ensure safety and trust.
+                        </p>
+                    </div>
+                    <div class="feature">
+                        <div class="icon orange">♧
+                        </div>
+                        <h3>Make Impact
+                        </h3>
+                        <p>Your small help can bring big changes in someone’s life and community.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="about" class="section">
+                <div class="container about">
+                    <div class="collage"><img class="big" src="https://images.unsplash.com/photo-1504150558240-0b4fd8946624?auto=format&fit=crop&w=900&q=85"><img class="small s1" src="https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=900&q=85"><img class="small s2" src="https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&w=1000&q=85">
+                        <div class="impactbubble">1000+<br><small>Lives Impacted</small>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="eyebrow">About DONATE+
+                        </div>
+                        <h2 class="serif">Creating a Better <span style="color:var(--green)">Nepal</span> Through Kindness
+                        </h2>
+                        <p>We connect kind hearts with people and organizations in need across Nepal. Together, we can build a stronger, happier and more compassionate society.
+                        </p>
+                        <div class="checks">
+                            <div class="check"><i>✓</i> Help communities across Nepal
+                            </div>
+                            <div class="check"><i>✓</i> Support education, health & daily needs
+                            </div>
+                            <div class="check"><i>✓</i> Build a better future for everyone
+                            </div>
+                        </div><a class="btn btn-green" href="register.html">Learn More →</a>
+                    </div>
+                </div>
+            </section>
+
+            <section id="campaigns" class="section campaigns" style="padding-top:20px">
+                <div class="container">
+                    <div class="eyebrow">Featured Campaigns
+                    </div>
+                    <h2 class="serif">Our Ongoing Campaigns
+                    </h2>
+                    <p style="color:#737970;font-size:13px">Support our ongoing campaigns and be a part of real change.
+                    </p>
+                    <div class="campaign-grid">
+
+                        <div class="card">
+                            <div class="cardimg"><img src="https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=900&q=85"><span class="tag">Education</span>
+                            </div>
+                            <div class="cardbody">
+                                <h3>Support Rural Education
+                                </h3>
+                                <p>Help us provide books, stationery and school materials to underserved children.
+                                </p>
+                                <div class="money"><span>Raised: NRP 120,000</span><span>Goal: NRP 200,000</span>
+                                </div>
+                                <div class="progress">
+                                    <div style="width:60%">
+                                    </div>
+                                </div><small>60%</small>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="cardimg"><img src="https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=900&q=85"><span class="tag orange">Clothes</span>
+                            </div>
+                            <div class="cardbody">
+                                <h3>Winter Clothes Distribution
+                                </h3>
+                                <p>Collecting warm clothes and blankets for people in need this winter.
+                                </p>
+                                <div class="money"><span>Raised: NRP 85,000</span><span>Goal: NRP 150,000</span>
+                                </div>
+                                <div class="progress orange">
+                                    <div style="width:57%">
+                                    </div>
+                                </div><small>57%</small>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="cardimg"><img src="https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&w=900&q=85"><span class="tag">Food</span>
+                            </div>
+                            <div class="cardbody">
+                                <h3>Food For All
+                                </h3>
+                                <p>Help us provide nutritious meals to hungry families and public shelters.
+                                </p>
+                                <div class="money"><span>Raised: NRP 95,000</span><span>Goal: NRP 150,000</span>
+                                </div>
+                                <div class="progress">
+                                    <div style="width:63%">
+                                    </div>
+                                </div><small>63%</small>
+                            </div>
+                        </div>
+
+                    </div><a class="btn btn-green" style="margin-top:28px" href="find-donations.php">View All Campaigns →</a>
+                </div>
+            </section>
+
+            <section class="stats">
+                <div class="stats-grid">
+                    <div>
+                        <div class="eyebrow" style="color:#ffae42">Our impact
+                        </div>
+                        <h2 class="serif">Together, We Are Stronger
+                        </h2>
+                        <p style="color:#d5e0d7;line-height:1.7;font-size:13px">These numbers represent the lives we’ve touched together across Nepal.
+                        </p>
+                        <div class="stat-cards">
+                            <div class="stat">♧ <b id="stat-items">0</b><span>Items Donated</span>
+                            </div>
+                            <div class="stat">♧ <b id="stat-beneficiaries">0</b><span>Happy Beneficiaries</span>
+                            </div>
+                            <div class="stat">♧ <b id="stat-donors">0</b><span>Registered Donors</span>
+                            </div>
+                            <div class="stat">♧ <b id="stat-recipients">0</b><span>Registered Recipients</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <h2 class="serif" style="font-size:30px">We Serve<br>Across Nepal
+                        </h2>
+                        <div class="nepal">
+                            <div class="mapshape"><i class="pin p1"></i><i class="pin p2"></i><i class="pin p3"></i><i class="pin p4"></i>
+                            </div>
+                            <div class="locations">📍 Kathmandu<br>📍 Lalitpur<br>📍 Bhaktapur<br>📍 Pokhara<br>📍 Chitwan<br>📍 Biratnagar<br>📍 Nepalgunj<br>📍 Dhangadhi
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <footer id="contact" class="footer">
+                <div class="container footergrid">
+                    <div>
+                        <h3>DONATE+
+                        </h3>
+                        <p>Give Today, Change Tomorrow.
+                        </p>
+                    </div>
+                    <div><b style="color:#fff">Contact</b>
+                        <p>☎ <span>+977 9824850184<br>+977 98155272657<br>Kathmandu, Nepal
+                        </p>
+                    </div>
+                    <div><b style="color:#fff">Quick Links</b>
+                        <p><a style="color:#c9d4cc" href="login.html">Login</a> · <a style="color:#c9d4cc" href="register.html">Register</a> · <a style="color:#c9d4cc" href="find-donations.php">Find Donations</a>
+                        </p>
+                    </div>
+                </div>
+            </footer>
+
+            <div style="background:#0f2a1c;color:#cdd8cf;text-align:center;padding:16px 12px;font-size:13px;letter-spacing:.3px">Made with <span style="color:#ff5a5f">&#10084;&#65039;</span> by Anshu &amp; Jayash
+            </div>
+
+            <script>
+(function(){
+  function animate(el, target){
+    if(!el) return;
+    target = parseInt(target, 10) || 0;
+    var dur = 1200, t0 = null;
+    function step(ts){
+      if(!t0) t0 = ts;
+      var p = Math.min((ts - t0) / dur, 1);
+      var eased = 1 - Math.pow(1 - p, 3);
+      el.textContent = Math.round(eased * target).toLocaleString();
+      if(p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+  fetch('stats.php')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      animate(document.getElementById('stat-items'), d.items);
+      animate(document.getElementById('stat-beneficiaries'), d.beneficiaries);
+      animate(document.getElementById('stat-donors'), d.donors);
+      animate(document.getElementById('stat-recipients'), d.recipients);
+    })
+    .catch(function(){ /* leave zeros if the endpoint is unreachable */ });
+
+  /* Sticky glassmorphism header: freeze + frost once the page scrolls. */
+  var hdr = document.querySelector('header');
+  function onScroll(){
+    if(!hdr) return;
+    if(window.scrollY > 20){ hdr.classList.add('glass'); }
+    else { hdr.classList.remove('glass'); }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+})();
+</script>
+
+        </body>
+    </html>
