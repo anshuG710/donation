@@ -18,15 +18,17 @@ USE donation_db;
 
 
 CREATE TABLE IF NOT EXISTS users (
-    id         INT AUTO_INCREMENT PRIMARY KEY,
-    name       VARCHAR(120)  NOT NULL,
-    email      VARCHAR(190)  NOT NULL UNIQUE,
-    phone      VARCHAR(30)       NULL,
-    password   VARCHAR(255)  NOT NULL,           -- password_hash() output
-    role       ENUM('donor','recipient','admin') NOT NULL DEFAULT 'donor',
-    is_active  TINYINT(1)    NOT NULL DEFAULT 1,  -- 0 = disabled account
-    address    VARCHAR(255)      NULL,
-    created_at TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+    id                INT AUTO_INCREMENT PRIMARY KEY,
+    name              VARCHAR(120)  NOT NULL,
+    email             VARCHAR(190)  NOT NULL UNIQUE,
+    phone             VARCHAR(30)       NULL,
+    password          VARCHAR(255)  NOT NULL,           -- password_hash() output
+    security_question VARCHAR(255)      NULL,           -- chosen at registration
+    security_answer   VARCHAR(255)      NULL,           -- password_hash() of the answer
+    role              ENUM('donor','recipient','admin') NOT NULL DEFAULT 'donor',
+    is_active         TINYINT(1)    NOT NULL DEFAULT 1,  -- 0 = disabled account
+    address           VARCHAR(255)      NULL,
+    created_at        TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
@@ -129,6 +131,16 @@ INSERT IGNORE INTO categories (name) VALUES
 --  is_active: lets an admin disable an account without deleting it.
 ALTER TABLE users
     ADD COLUMN IF NOT EXISTS is_active TINYINT(1) NOT NULL DEFAULT 1 AFTER role;
+
+
+--  security question + answer: used by forgot-password.php so a user can
+--  reset their own password by answering the question they picked at signup.
+--  The answer is stored as a password_hash(), never in plain text.
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS security_question VARCHAR(255) NULL AFTER password;
+
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS security_answer VARCHAR(255) NULL AFTER security_question;
 
 
 --  activity_log: records admin actions (who did what, when) for accountability.

@@ -36,6 +36,8 @@ $password = $_POST["password"] ?? "";
 $confirm_password = $_POST["confirm_password"] ?? "";
 $role = trim($_POST["role"] ?? "");
 $address = trim($_POST["address"] ?? "");
+$security_question = trim($_POST["security_question"] ?? "");
+$security_answer = trim($_POST["security_answer"] ?? "");
 
 
 /*
@@ -49,6 +51,30 @@ if ($name === "" || $email === "" || $password === "") {
     echo "
     <script>
         alert('Please fill in all required fields.');
+        window.location.href = 'register.html';
+    </script>
+    ";
+
+    exit();
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Check Security Question + Answer
+|--------------------------------------------------------------------------
+|
+| These are needed so the user can recover their password later on
+| the forgot-password page.
+|
+*/
+
+if ($security_question === "" || $security_answer === "") {
+
+    echo "
+    <script>
+        alert('Please choose a security question and enter an answer.');
         window.location.href = 'register.html';
     </script>
     ";
@@ -206,13 +232,29 @@ $hashed_password = password_hash(
 
 /*
 |--------------------------------------------------------------------------
+| Hash Security Answer
+|--------------------------------------------------------------------------
+|
+| Stored the same way as a password. Lower-cased first so the check on
+| the forgot-password page is not case-sensitive.
+|
+*/
+
+$hashed_answer = password_hash(
+    strtolower($security_answer),
+    PASSWORD_DEFAULT
+);
+
+
+/*
+|--------------------------------------------------------------------------
 | Insert New User
 |--------------------------------------------------------------------------
 */
 
 $sql = "INSERT INTO users
-        (name, email, phone, password, role, address)
-        VALUES (?, ?, ?, ?, ?, ?)";
+        (name, email, phone, password, role, address, security_question, security_answer)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
 
 $stmt = $conn->prepare($sql);
@@ -226,13 +268,15 @@ if (!$stmt) {
 
 
 $stmt->bind_param(
-    "ssssss",
+    "ssssssss",
     $name,
     $email,
     $phone,
     $hashed_password,
     $role,
-    $address
+    $address,
+    $security_question,
+    $hashed_answer
 );
 
 
