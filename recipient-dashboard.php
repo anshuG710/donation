@@ -844,6 +844,13 @@ td {
     </a>
 
 
+    <a href="profile.php">
+
+        Profile
+
+    </a>
+
+
     <a href="#">
 
         History

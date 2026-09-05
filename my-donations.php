@@ -22,6 +22,10 @@ if (!isset($_SESSION["user_id"])) {
 
 require_once __DIR__ . "/config/database.php";
 require_once __DIR__ . "/config/helpers.php";
+require_once __DIR__ . "/config/csrf.php";
+
+$has_expiry = column_exists($conn, "donations", "expiry_date");
+$expiry_col = $has_expiry ? "donations.expiry_date," : "";
 
 
 /*
@@ -32,6 +36,53 @@ require_once __DIR__ . "/config/helpers.php";
 
 $user_id = $_SESSION["user_id"];
 $user_name = $_SESSION["user_name"] ?? "User";
+
+
+/*
+|--------------------------------------------------------------------------
+| Cancel / Withdraw a Donation (donor's own only)
+|--------------------------------------------------------------------------
+|
+| The donor can withdraw a listing they posted. It sets the status to
+| 'cancelled' (kept for history, hidden from Browse). Only the owner can
+| do it, and a donation that is already completed or cancelled is left
+| alone.
+|
+*/
+
+if ($_SERVER["REQUEST_METHOD"] === "POST"
+    && ($_POST["action"] ?? "") === "cancel") {
+
+    if (!csrf_verify()) {
+        $_SESSION["md_flash"] = ["type" => "error", "msg" => "Security check failed. Please try again."];
+        header("Location: my-donations.php");
+        exit();
+    }
+
+    $cancel_id = (int) ($_POST["donation_id"] ?? 0);
+
+    if ($cancel_id > 0) {
+
+        $c = $conn->prepare("
+            UPDATE donations
+            SET status = 'cancelled'
+            WHERE id = ?
+              AND donor_id = ?
+              AND status NOT IN ('completed', 'cancelled')
+        ");
+        $c->bind_param("ii", $cancel_id, $user_id);
+        $c->execute();
+        $affected = $c->affected_rows;
+        $c->close();
+
+        $_SESSION["md_flash"] = $affected > 0
+            ? ["type" => "success", "msg" => "Donation withdrawn. It no longer appears in Browse."]
+            : ["type" => "error", "msg" => "That donation could not be withdrawn."];
+    }
+
+    header("Location: my-donations.php");
+    exit();
+}
 
 
 /*
@@ -51,6 +102,7 @@ $sql = "
         donations.description,
         donations.quantity,
         donations.item_condition,
+        {$expiry_col}
         donations.location,
         donations.image,
         donations.status,
@@ -65,15 +117,25 @@ $sql = "
         ON donations.category_id = categories.id
     WHERE donations.donor_id = ?
     ORDER BY donations.created_at DESC
+    LIMIT ?, ?
 ";
+
+// True total for the summary + pagination.
+$count_stmt = $conn->prepare("SELECT COUNT(*) AS c FROM donations WHERE donor_id = ?");
+$count_stmt->bind_param("i", $user_id);
+$count_stmt->execute();
+$total_donations = (int) ($count_stmt->get_result()->fetch_assoc()["c"] ?? 0);
+$count_stmt->close();
+
+$pg = paginate($total_donations, 10);
 
 $stmt = $conn->prepare($sql);
 
 if (!$stmt) {
-    die("Database query failed: " . $conn->error);
+    die("Sorry, something went wrong loading this page. Please try again.");
 }
 
-$stmt->bind_param("i", $user_id);
+$stmt->bind_param("iii", $user_id, $pg["offset"], $pg["per_page"]);
 $stmt->execute();
 
 $result = $stmt->get_result();
@@ -85,7 +147,7 @@ $result = $stmt->get_result();
 |--------------------------------------------------------------------------
 */
 
-$total_donations = $result->num_rows;
+// $total_donations was computed above (the true total, not just this page).
 
 
 /*
@@ -545,6 +607,26 @@ function statusClass($status)
 
 
 
+        <?php if (!empty($_SESSION["md_flash"])):
+            $mf = $_SESSION["md_flash"];
+            unset($_SESSION["md_flash"]);
+            $mf_bg = $mf["type"] === "success" ? "#e8f4e8" : "#fde8e8";
+            $mf_fg = $mf["type"] === "success" ? "#27713e" : "#a33a3a";
+        ?>
+            <div class="ud-flash" style="background:<?= $mf_bg ?>;color:<?= $mf_fg ?>;padding:14px 18px;border-radius:10px;margin-bottom:22px;font-weight:600;font-size:14px;display:flex;align-items:center;justify-content:space-between;gap:14px">
+                <span><?= htmlspecialchars($mf["msg"]) ?></span>
+                <button type="button" aria-label="Dismiss" onclick="this.parentNode.remove()" style="background:transparent;border:0;color:inherit;font-size:20px;line-height:1;cursor:pointer;opacity:.6;padding:0 2px">&times;</button>
+            </div>
+            <script>
+            (function(){
+                document.querySelectorAll(".ud-flash").forEach(function(el){
+                    setTimeout(function(){ el.style.transition="opacity .4s"; el.style.opacity="0"; setTimeout(function(){ el.remove(); },400); },5000);
+                });
+            })();
+            </script>
+        <?php endif; ?>
+
+
         <!-- Summary -->
 
         <div class="summary">
@@ -606,6 +688,10 @@ function statusClass($status)
 
                                 <th>
                                     Status
+                                </th>
+
+                                <th>
+                                    Actions
                                 </th>
 
                             </tr>
@@ -678,6 +764,17 @@ function statusClass($status)
                                     );
                                     ?>
 
+                                    <?php if (!empty($donation["expiry_date"])):
+                                        $md_exp = strtotime($donation["expiry_date"]);
+                                        $md_expired = $donation["expiry_date"] < date("Y-m-d"); ?>
+                                        <br>
+                                        <small style="color:<?= $md_expired ? "#b23b3b" : "#8a7a3a" ?>">
+                                            ⏳ Best before
+                                            <?= htmlspecialchars($md_exp ? date("d M Y", $md_exp) : $donation["expiry_date"]) ?>
+                                            <?= $md_expired ? " (expired)" : "" ?>
+                                        </small>
+                                    <?php endif; ?>
+
                                 </td>
 
 
@@ -712,6 +809,24 @@ function statusClass($status)
 
                                 </td>
 
+                                <td>
+                                    <?php if (!in_array($donation["status"], ["completed", "cancelled"], true)): ?>
+                                        <form method="post"
+                                              onsubmit="return confirm('Withdraw this donation? It will be removed from Browse.');"
+                                              style="margin:0">
+                                            <?php csrf_field(); ?>
+                                            <input type="hidden" name="action" value="cancel">
+                                            <input type="hidden" name="donation_id" value="<?php echo (int) $donation["id"]; ?>">
+                                            <button type="submit"
+                                                style="background:#fff;border:1px solid #e0b4b4;color:#a33a3a;padding:7px 12px;border-radius:8px;font-weight:600;font-size:12px;cursor:pointer">
+                                                Withdraw
+                                            </button>
+                                        </form>
+                                    <?php else: ?>
+                                        <span style="color:#b9beb9;font-size:12px">—</span>
+                                    <?php endif; ?>
+                                </td>
+
                             </tr>
 
                         <?php endwhile; ?>
@@ -721,6 +836,15 @@ function statusClass($status)
                     </table>
 
                 </div>
+
+                <?php pagination_links($pg); ?>
+
+                <style>
+                .pagination{display:flex;gap:8px;justify-content:center;margin:26px 0;flex-wrap:wrap}
+                .pagination a,.pagination span{padding:8px 13px;border-radius:8px;border:1px solid #e0ddd4;color:#1f5b3a;font-weight:600;font-size:13px;text-decoration:none}
+                .pagination .current{background:#1f5b3a;color:#fff;border-color:#1f5b3a}
+                .pagination a:hover{background:#eef4ea}
+                </style>
 
             <?php else: ?>
 

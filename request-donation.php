@@ -4,6 +4,7 @@ session_start();
 
 require_once __DIR__ . "/config/database.php";
 require_once __DIR__ . "/config/helpers.php";
+require_once __DIR__ . "/config/csrf.php";
 
 /*
 |--------------------------------------------------------------------------
@@ -38,14 +39,23 @@ if ($donation_id <= 0) {
 |--------------------------------------------------------------------------
 */
 
+$has_expiry = column_exists($conn, "donations", "expiry_date");
+$expiry_col = $has_expiry ? "d.expiry_date," : "";
+
+$has_campaign = column_exists($conn, "donations", "campaign_id");
+$campaign_col = $has_campaign ? "d.campaign_id," : "";
+
 $sql = "
     SELECT
         d.id,
+        d.donor_id,
         d.title,
         d.quantity,
         d.item_condition,
         d.location,
         d.status,
+        {$expiry_col}
+        {$campaign_col}
         c.name AS category_name,
         u.name AS donor_name
     FROM donations d
@@ -60,7 +70,7 @@ $sql = "
 $stmt = $conn->prepare($sql);
 
 if (!$stmt) {
-    die("Database query failed: " . $conn->error);
+    die("Sorry, something went wrong loading this page. Please try again.");
 }
 
 $stmt->bind_param("i", $donation_id);
@@ -92,6 +102,16 @@ $available_quantity = donation_remaining($conn, $donation_id, $total_quantity);
 
 $status = $donation["status"] ?? "available";
 
+// A donor cannot request their own donation.
+$is_own_donation = ((int) ($donation["donor_id"] ?? 0) === $recipient_id);
+
+// Items donated to a campaign are collected through the drive, not requested here.
+$is_campaign_item = !empty($donation["campaign_id"]);
+
+// Perishable items past their best-before date can no longer be requested.
+$today = date("Y-m-d");
+$is_expired = !empty($donation["expiry_date"]) && $donation["expiry_date"] < $today;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -121,7 +141,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     |--------------------------------------------------------------------------
     */
 
-    if ($requested_quantity <= 0) {
+    if (!csrf_verify()) {
+
+        $error = "Security check failed. Please refresh the page and try again.";
+
+    } elseif ($is_campaign_item) {
+
+        $error = "This item is part of a campaign drive and can't be requested individually.";
+
+    } elseif ($is_own_donation) {
+
+        $error = "You cannot request your own donation.";
+
+    } elseif ($is_expired) {
+
+        $error = "This item has passed its expiry / best-before date and can no longer be requested.";
+
+    } elseif ($requested_quantity <= 0) {
 
         $error = "Please enter a valid requested quantity.";
 
@@ -140,6 +176,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     } elseif ($collection_date === "") {
 
         $error = "Please select a preferred collection date.";
+
+    } elseif ($collection_date < $today) {
+
+        $error = "The collection date cannot be in the past.";
 
     } else {
 
@@ -162,7 +202,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $check_stmt = $conn->prepare($check_sql);
 
         if (!$check_stmt) {
-            die("Database query failed: " . $conn->error);
+            die("Sorry, something went wrong loading this page. Please try again.");
         }
 
         $check_stmt->bind_param(
@@ -211,7 +251,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $insert_stmt = $conn->prepare($insert_sql);
 
             if (!$insert_stmt) {
-                die("Database insert failed: " . $conn->error);
+                die("Sorry, we couldn't submit your request. Please try again.");
             }
 
             $insert_stmt->bind_param(
@@ -623,7 +663,33 @@ small {
         <?php endif; ?>
 
 
-        <?php if ($status !== "available" || $available_quantity <= 0): ?>
+        <?php if ($is_campaign_item): ?>
+
+            <div class="error">
+
+                This item was donated to a campaign drive. It's collected and
+                distributed through the campaign, so it can't be requested here.
+
+            </div>
+
+        <?php elseif ($is_own_donation): ?>
+
+            <div class="error">
+
+                This is your own donation — you can't request it.
+
+            </div>
+
+        <?php elseif ($is_expired): ?>
+
+            <div class="error">
+
+                This item has passed its expiry / best-before date
+                and can no longer be requested.
+
+            </div>
+
+        <?php elseif ($status !== "available" || $available_quantity <= 0): ?>
 
             <div class="error">
 
@@ -638,6 +704,7 @@ small {
             <form method="POST"
                   action="request-donation.php?id=<?= $donation_id ?>">
 
+                <?php csrf_field(); ?>
 
                 <input type="hidden"
                        name="donation_id"
@@ -717,6 +784,7 @@ small {
                         type="date"
                         name="collection_date"
                         required
+                        min="<?= date('Y-m-d') ?>"
                         value="<?= htmlspecialchars($_POST["collection_date"] ?? "") ?>"
                     >
 

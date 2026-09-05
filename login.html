@@ -270,6 +270,8 @@ a{
 
             <form action="login.php" method="POST" style="margin-top:20px">
 
+                <input type="hidden" name="next" id="next-field" value="">
+
                 <!-- EMAIL -->
 
                 <div class="field">
@@ -347,6 +349,14 @@ a{
     </div>
 
 </div>
+
+<script>
+(function(){
+    var n = new URLSearchParams(location.search).get('next');
+    var f = document.getElementById('next-field');
+    if (n && f) { f.value = n; }
+})();
+</script>
 
 </body>
 </html>

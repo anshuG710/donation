@@ -4,6 +4,7 @@ session_start();
 
 require_once __DIR__ . "/config/database.php";
 require_once __DIR__ . "/config/helpers.php";
+require_once __DIR__ . "/config/csrf.php";
 
 /*
 |--------------------------------------------------------------------------
@@ -32,6 +33,12 @@ $donor_id = intval($_SESSION["user_id"]);
 */
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
+
+    if (!csrf_verify()) {
+        $_SESSION["dr_flash"] = ["type" => "error", "msg" => "Security check failed. Please try again."];
+        header("Location: donor-requests.php");
+        exit;
+    }
 
     $request_id = intval($_POST["request_id"] ?? 0);
     $action = $_POST["action"] ?? "";
@@ -87,7 +94,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $_SESSION["dr_flash"] = [
                     "type" => "success",
                     "msg"  => "Request approved. " . $left . " left"
-                              . ($left === 0 ? " — donation marked completed." : "."),
+                              . ($left === 0
+                                    ? " — fully reserved, now awaiting the recipient(s) to confirm receipt."
+                                    : "."),
                 ];
             }
 
@@ -164,7 +173,7 @@ $sql = "
 $stmt = $conn->prepare($sql);
 
 if (!$stmt) {
-    die("Database query failed: " . $conn->error);
+    die("Sorry, something went wrong loading this page. Please try again.");
 }
 
 $stmt->bind_param("i", $donor_id);
@@ -857,14 +866,6 @@ h1 {
 <main class="container">
 
 
-    <a href="donor-dashboard.php"
-       class="back">
-
-        ← Back to Dashboard
-
-    </a>
-
-
     <div class="eyebrow">
 
         DONOR PORTAL
@@ -887,9 +888,17 @@ h1 {
 
 
     <?php if ($dr_flash): ?>
-        <div style="margin:0 0 22px;padding:13px 16px;border-radius:11px;font-size:14px;font-weight:600;<?= $dr_flash["type"] === "success" ? "background:#e8f4e8;color:#27713e;border:1px solid #cfe6d2" : "background:#fde8e8;color:#a33a3a;border:1px solid #f2cccc" ?>">
-            <?= htmlspecialchars($dr_flash["msg"]) ?>
+        <div class="ud-flash" style="margin:0 0 22px;padding:13px 16px;border-radius:11px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:space-between;gap:14px;<?= $dr_flash["type"] === "success" ? "background:#e8f4e8;color:#27713e;border:1px solid #cfe6d2" : "background:#fde8e8;color:#a33a3a;border:1px solid #f2cccc" ?>">
+            <span><?= htmlspecialchars($dr_flash["msg"]) ?></span>
+            <button type="button" aria-label="Dismiss" onclick="this.parentNode.remove()" style="background:transparent;border:0;color:inherit;font-size:20px;line-height:1;cursor:pointer;opacity:.6;padding:0 2px">&times;</button>
         </div>
+        <script>
+        (function(){
+            document.querySelectorAll(".ud-flash").forEach(function(el){
+                setTimeout(function(){ el.style.transition="opacity .4s"; el.style.opacity="0"; setTimeout(function(){ el.remove(); },400); },5000);
+            });
+        })();
+        </script>
     <?php endif; ?>
 
 
@@ -1231,6 +1240,8 @@ h1 {
 
                         <form method="POST">
 
+                            <?php csrf_field(); ?>
+
                             <input
                                 type="hidden"
                                 name="request_id"
@@ -1261,6 +1272,8 @@ h1 {
                         <!-- REJECT -->
 
                         <form method="POST">
+
+                            <?php csrf_field(); ?>
 
                             <input
                                 type="hidden"

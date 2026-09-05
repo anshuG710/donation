@@ -23,6 +23,7 @@ if (!isset($_SESSION["user_id"])) {
 */
 
 require_once __DIR__ . "/config/database.php";
+require_once __DIR__ . "/config/helpers.php";
 
 
 /*
@@ -144,11 +145,19 @@ $stmt_requests->close();
 |--------------------------------------------------------------------------
 */
 
+$completed_cond = "status = 'completed'";
+
+if (column_exists($conn, "donations", "campaign_status")) {
+    // A campaign contribution is "done" once the admin approves/collects it,
+    // even though its base status never becomes 'completed'.
+    $completed_cond = "(status = 'completed' OR campaign_status = 'approved')";
+}
+
 $sql_completed = "
     SELECT COUNT(*) AS total
     FROM donations
     WHERE donor_id = ?
-    AND status = 'completed'
+    AND $completed_cond
 ";
 
 $stmt_completed = $conn->prepare($sql_completed);
@@ -881,6 +890,13 @@ function statusClass($status)
 </a>
 
 
+            <a href="profile.php">
+
+                Profile
+
+            </a>
+
+
         </nav>
 
 
@@ -967,11 +983,17 @@ function statusClass($status)
 
             <?php if ((int) $completed_donations > 0): ?>
 
-                <div style="background:linear-gradient(90deg,#eaf6ec,#f4faf0);border:1px solid #cfe6d2;border-radius:16px;padding:18px 22px;margin-bottom:30px;display:flex;align-items:center;gap:14px">
+                <div id="donate-greeting" style="position:relative;overflow:hidden;background:linear-gradient(90deg,#eaf6ec,#f4faf0);border:1px solid #cfe6d2;border-radius:16px;padding:18px 22px;margin-bottom:30px;display:flex;align-items:center;gap:14px">
 
-                    <span style="font-size:28px">&#127881;</span>
+                    <span id="dg-confetti" style="position:absolute;inset:0;pointer-events:none;overflow:hidden"></span>
 
-                    <div>
+                    <span class="dg-namaste" aria-hidden="true">
+                        <span class="dg-hand dg-hand-l">&#129306;</span>
+                        <span class="dg-hand dg-hand-r">&#9995;</span>
+                        <span class="dg-pray">&#128591;</span>
+                    </span>
+
+                    <div style="position:relative;z-index:2">
                         <b style="color:#216b45;font-size:15px">Thank you for donating, <?php echo htmlspecialchars($user_name); ?>!</b>
                         <div style="color:#5a6b5e;font-size:13px;margin-top:2px">
                             You&rsquo;ve completed <?php echo (int) $completed_donations; ?>
@@ -980,7 +1002,56 @@ function statusClass($status)
                         </div>
                     </div>
 
+                    <button type="button" id="dg-close" aria-label="Dismiss"
+                            style="position:absolute;top:10px;right:13px;z-index:3;background:transparent;border:0;color:#5a6b5e;font-size:20px;line-height:1;cursor:pointer;opacity:.55">&times;</button>
                 </div>
+
+                <style>
+                .dg-namaste{position:relative;width:46px;height:40px;flex:0 0 46px;z-index:2}
+                .dg-namaste .dg-hand,.dg-namaste .dg-pray{position:absolute;top:50%;left:50%;font-size:26px}
+                .dg-hand-l{animation:dgHandL 900ms ease-out forwards}
+                .dg-hand-r{animation:dgHandR 900ms ease-out forwards}
+                .dg-pray{opacity:0;animation:dgPray 620ms cubic-bezier(.2,1.4,.4,1) 820ms forwards}
+                @keyframes dgHandL{0%{transform:translate(-150%,-50%) rotate(-22deg);opacity:0}55%{opacity:1}100%{transform:translate(-78%,-50%) rotate(-6deg);opacity:0}}
+                @keyframes dgHandR{0%{transform:translate(46%,-50%) rotate(22deg);opacity:0}55%{opacity:1}100%{transform:translate(-24%,-50%) rotate(6deg);opacity:0}}
+                @keyframes dgPray{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}70%{opacity:1;transform:translate(-50%,-50%) scale(1.25)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+                .dg-confetti-piece{position:absolute;width:8px;height:8px;border-radius:2px;opacity:.9;will-change:transform,opacity}
+                </style>
+
+                <script>
+                (function(){
+                    var g = document.getElementById('donate-greeting');
+                    if(!g) return;
+                    try { if (sessionStorage.getItem('dgClosed')==='1'){ g.style.display='none'; return; } } catch(e){}
+                    var c = document.getElementById('dg-close');
+                    if(c){ c.addEventListener('click', function(){
+                        g.style.transition='opacity .3s'; g.style.opacity='0';
+                        setTimeout(function(){ g.remove(); }, 300);
+                        try{ sessionStorage.setItem('dgClosed','1'); }catch(e){}
+                    }); }
+                    var layer = document.getElementById('dg-confetti');
+                    if(layer){
+                        var colors=['#1f5b3a','#2f8f5b','#f28c18','#ffce54','#4f97d8','#e2597b'];
+                        for(var i=0;i<30;i++){
+                            (function(){
+                                var s=document.createElement('span');
+                                s.className='dg-confetti-piece';
+                                s.style.background=colors[Math.floor(Math.random()*colors.length)];
+                                s.style.left='20px'; s.style.top='50%';
+                                var dx=(Math.random()*2-1)*260, dy=(Math.random()*-1-0.15)*100, rot=Math.random()*360;
+                                var dur=900+Math.random()*700;
+                                s.style.transition='transform '+dur+'ms cubic-bezier(.2,.7,.3,1), opacity '+dur+'ms ease-out';
+                                layer.appendChild(s);
+                                requestAnimationFrame(function(){
+                                    s.style.transform='translate('+dx+'px,'+dy+'px) rotate('+rot+'deg)';
+                                    s.style.opacity='0';
+                                });
+                                setTimeout(function(){ if(s.parentNode) s.remove(); }, dur+60);
+                            })();
+                        }
+                    }
+                })();
+                </script>
 
             <?php endif; ?>
 

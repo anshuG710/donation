@@ -362,10 +362,28 @@ tr:last-child td { border-bottom:none; }
     font-size:13px;
     font-weight:600;
     margin-top:18px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:14px;
 }
 
 .flash-success { background:#e8f4e8; color:#27713e; border:1px solid #cfe6d2; }
 .flash-error   { background:#fde8e8; color:#a33a3a; border:1px solid #f2cccc; }
+
+.flash-close {
+    background:transparent;
+    border:0;
+    color:inherit;
+    font-size:20px;
+    line-height:1;
+    cursor:pointer;
+    opacity:.55;
+    padding:0 2px;
+    flex:0 0 auto;
+}
+
+.flash-close:hover { opacity:1; }
 
 
 /* PAGINATION */
@@ -441,6 +459,7 @@ tr:last-child td { border-bottom:none; }
     <a<?= $nav_active("donations") ?>  href="admin-donations.php">Donations</a>
     <a<?= $nav_active("requests") ?>   href="admin-requests.php">Requests</a>
     <a<?= $nav_active("categories") ?> href="admin-categories.php">Categories</a>
+    <a<?= $nav_active("campaigns") ?>  href="admin-campaigns.php">Campaigns</a>
 
     <div class="nav-group">Insights</div>
     <a<?= $nav_active("reports") ?>    href="admin-reports.php">Reports</a>

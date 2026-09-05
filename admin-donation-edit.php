@@ -11,10 +11,13 @@
 */
 
 require_once __DIR__ . "/config/admin-guard.php";
+require_once __DIR__ . "/config/conditions.php";
 
-$statuses   = ["available", "requested", "completed", "cancelled"];
-$units      = ["pieces", "kg", "grams", "liters", "packets", "boxes", "sets"];
-$conditions = ["New", "Like New", "Good", "Used"];
+$statuses = ["available", "requested", "completed", "cancelled"];
+$units    = ["pieces", "kg", "grams", "liters", "packets", "boxes", "sets"];
+
+// Whether the perishable-expiry column has been migrated in yet.
+$has_expiry_col = column_exists($conn, "donations", "expiry_date");
 
 
 /* Categories for the dropdown. */
@@ -53,75 +56,36 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         exit();
     }
 
-    // Collect + validate.
-    $title       = trim($_POST["title"] ?? "");
-    $description = trim($_POST["description"] ?? "");
-    $category_id = (int) ($_POST["category_id"] ?? 0);
-    $quantity    = (int) ($_POST["quantity"] ?? 1);
-    $unit        = $_POST["unit"] ?? "";
-    $condition   = $_POST["item_condition"] ?? "";
-    $location    = trim($_POST["location"] ?? "");
-    $status      = $_POST["status"] ?? "available";
+    /*
+    | MODERATION ONLY.
+    | An admin may change a listing's STATUS (take down / restore / cancel /
+    | mark completed) but never the donor's own content — title, category,
+    | quantity, unit, condition, expiry, location or description. Any of
+    | those fields posted are deliberately ignored here, so an admin can
+    | never, for example, turn a food donation into furniture.
+    */
 
-    $errors = [];
+    $status = $_POST["status"] ?? "available";
 
-    if ($title === "") {
-        $errors[] = "Title is required.";
-    }
-    if ($quantity < 1) {
-        $quantity = 1;
-    }
     if (!in_array($status, $statuses, true)) {
         $status = "available";
     }
-    if ($unit !== "" && !in_array($unit, $units, true)) {
-        $unit = "";
-    }
-    if ($condition !== "" && !in_array($condition, $conditions, true)) {
-        $condition = "";
-    }
 
-    // category_id may be NULL (0 -> NULL).
-    $cat_value = $category_id > 0 ? $category_id : null;
-
-    if ($errors) {
-        set_flash("error", implode(" ", $errors));
-        header("Location: admin-donation-edit.php?id=" . $did);
-        exit();
-    }
-
-    $sql = "
-        UPDATE donations
-        SET title = ?, description = ?, category_id = ?, quantity = ?,
-            unit = ?, item_condition = ?, location = ?, status = ?
-        WHERE id = ?
-    ";
-
-    $stmt = $conn->prepare($sql);
-    // types: s s i i s s s s i
-    $stmt->bind_param(
-        "ssiissssi",
-        $title,
-        $description,
-        $cat_value,
-        $quantity,
-        $unit,
-        $condition,
-        $location,
-        $status,
-        $did
-    );
+    $stmt = $conn->prepare("UPDATE donations SET status = ? WHERE id = ?");
+    $stmt->bind_param("si", $status, $did);
     $ok = $stmt->execute();
     $stmt->close();
 
     if ($ok) {
-        log_activity($conn, $admin_id, "donation.edit",
-            "Edited \"" . $title . "\"");
+        log_activity($conn, $admin_id, "donation.status",
+            "Set donation #" . $did . " status to " . $status);
     }
 
     set_flash(
         $ok ? "success" : "error",
-        $ok ? htmlspecialchars($title) . " was updated." : "Could not save changes."
+        $ok
+            ? "Donation status updated to " . htmlspecialchars($status) . "."
+            : "Could not update the status."
     );
 
     header("Location: admin-donations.php");
@@ -137,9 +101,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 $did = (int) ($_GET["id"] ?? 0);
 
+$expiry_select = $has_expiry_col ? ", expiry_date" : "";
+
 $stmt = $conn->prepare("
     SELECT id, title, description, category_id, quantity, unit,
-           item_condition, location, status
+           item_condition, location, status" . $expiry_select . "
     FROM donations
     WHERE id = ?
     LIMIT 1
@@ -162,8 +128,17 @@ if (!$donation) {
 |--------------------------------------------------------------------------
 */
 
-$page_title = "Edit Donation";
+$page_title = "Moderate Donation";
 $active_nav = "donations";
+
+// Read-only display values — an admin cannot change the donor's content.
+$view_cat_name = category_name_by_id($conn, (int) $donation["category_id"]);
+if ($view_cat_name === "") {
+    $view_cat_name = "Uncategorized";
+}
+$view_expiry = ($has_expiry_col && !empty($donation["expiry_date"]))
+    ? date("d M Y", strtotime($donation["expiry_date"]))
+    : "—";
 
 require_once __DIR__ . "/includes/admin-header.php";
 ?>
@@ -172,78 +147,64 @@ require_once __DIR__ . "/includes/admin-header.php";
 <div class="top-section">
     <div>
         <div class="eyebrow">Administration</div>
-        <h2 class="serif">Edit Donation</h2>
+        <h2 class="serif">Moderate Donation</h2>
     </div>
     <a class="btn btn-ghost btn-sm" href="admin-donations.php">&larr; Back to donations</a>
 </div>
 
 
 <div class="card" style="max-width:720px">
+    <p style="color:#6b726b;font-size:13px;margin:0 0 18px">
+        The donor owns this listing's details, so they are shown read-only
+        here. As an admin you can change its <strong>status</strong> (take it
+        down, restore, cancel, or mark completed) or delete it from the
+        donations list. To fix wrong details, take the listing down and ask
+        the donor to correct it.
+    </p>
+
+    <div class="field">
+        <label>Title</label>
+        <div class="readonly-value"><?= e($donation["title"]) ?></div>
+    </div>
+
+    <div class="field">
+        <label>Description</label>
+        <div class="readonly-value"><?= !empty($donation["description"]) ? nl2br(e($donation["description"])) : "—" ?></div>
+    </div>
+
+    <div class="field">
+        <label>Category</label>
+        <div class="readonly-value"><?= e($view_cat_name) ?></div>
+    </div>
+
+    <div class="field">
+        <label>Quantity</label>
+        <div class="readonly-value"><?= (int) $donation["quantity"] ?> <?= e($donation["unit"] ?? "") ?></div>
+    </div>
+
+    <div class="field">
+        <label>Condition</label>
+        <div class="readonly-value"><?= !empty($donation["item_condition"]) ? e($donation["item_condition"]) : "—" ?></div>
+    </div>
+
+    <div class="field">
+        <label>Expiry / Best-before</label>
+        <div class="readonly-value"><?= e($view_expiry) ?></div>
+    </div>
+
+    <div class="field">
+        <label>Location</label>
+        <div class="readonly-value"><?= !empty($donation["location"]) ? e($donation["location"]) : "—" ?></div>
+    </div>
+
+    <hr style="border:none;border-top:1px solid #ececec;margin:20px 0">
+
     <form method="post">
         <?php csrf_field(); ?>
         <input type="hidden" name="donation_id" value="<?= (int) $donation["id"] ?>">
 
         <div class="field">
-            <label>Title</label>
-            <input type="text" name="title" value="<?= e($donation["title"]) ?>" required>
-        </div>
-
-        <div class="field">
-            <label>Description</label>
-            <textarea name="description" rows="4"><?= e($donation["description"]) ?></textarea>
-        </div>
-
-        <div class="field">
-            <label>Category</label>
-            <select name="category_id">
-                <option value="0">— Uncategorized —</option>
-                <?php foreach ($categories as $c): ?>
-                    <option value="<?= (int) $c["id"] ?>"
-                        <?= (int) $donation["category_id"] === (int) $c["id"] ? "selected" : "" ?>>
-                        <?= e($c["name"]) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-
-        <div class="field">
-            <label>Quantity</label>
-            <input type="number" name="quantity" min="1"
-                   value="<?= (int) $donation["quantity"] ?>">
-        </div>
-
-        <div class="field">
-            <label>Unit</label>
-            <select name="unit">
-                <option value="">— None —</option>
-                <?php foreach ($units as $u): ?>
-                    <option value="<?= e($u) ?>" <?= $donation["unit"] === $u ? "selected" : "" ?>>
-                        <?= e($u) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-
-        <div class="field">
-            <label>Condition</label>
-            <select name="item_condition">
-                <option value="">— Not specified —</option>
-                <?php foreach ($conditions as $cond): ?>
-                    <option value="<?= e($cond) ?>"
-                        <?= $donation["item_condition"] === $cond ? "selected" : "" ?>>
-                        <?= e($cond) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-
-        <div class="field">
-            <label>Location</label>
-            <input type="text" name="location" value="<?= e($donation["location"]) ?>">
-        </div>
-
-        <div class="field">
-            <label>Status</label>
+            <label>Status <span style="color:#8a8f8a;font-weight:400">(admin can change this)</span></label>
             <select name="status">
                 <?php foreach ($statuses as $s): ?>
                     <option value="<?= e($s) ?>" <?= $donation["status"] === $s ? "selected" : "" ?>>
@@ -253,10 +214,22 @@ require_once __DIR__ . "/includes/admin-header.php";
             </select>
         </div>
 
-        <button type="submit" class="btn btn-green">Save changes</button>
+        <button type="submit" class="btn btn-green">Update status</button>
         <a class="btn btn-ghost" href="admin-donations.php">Cancel</a>
     </form>
 </div>
+
+
+<style>
+.readonly-value {
+    padding: 11px 12px;
+    background: #f6f6f4;
+    border: 1px solid #e6e6e0;
+    border-radius: 8px;
+    color: #333;
+    font-size: 14px;
+}
+</style>
 
 
 <?php require_once __DIR__ . "/includes/admin-footer.php"; ?>

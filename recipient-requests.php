@@ -3,6 +3,8 @@
 session_start();
 
 require_once __DIR__ . "/config/database.php";
+require_once __DIR__ . "/config/helpers.php";
+require_once __DIR__ . "/config/csrf.php";
 
 
 /*
@@ -17,6 +19,63 @@ if (!isset($_SESSION["user_id"])) {
 }
 
 $recipient_id = (int) $_SESSION["user_id"];
+
+
+/*
+|--------------------------------------------------------------------------
+| HANDLE "MARK AS RECEIVED"
+|--------------------------------------------------------------------------
+|
+| The recipient confirms they actually received an approved donation. Only
+| the recipient who owns the request can do this, and only while it is still
+| 'approved'. Confirming moves it to 'completed' and recomputes the
+| donation's status (the donation completes once everything is received).
+|
+*/
+
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
+
+    if (!csrf_verify()) {
+        $_SESSION["rr_flash"] = ["type" => "error", "msg" => "Security check failed. Please try again."];
+        header("Location: recipient-requests.php");
+        exit();
+    }
+
+    $post_request_id = (int) ($_POST["request_id"] ?? 0);
+    $post_action     = $_POST["action"] ?? "";
+
+    if ($post_request_id > 0 && $post_action === "received") {
+
+        $lookup = $conn->prepare("
+            SELECT id, donation_id, status
+            FROM donation_requests
+            WHERE id = ? AND recipient_id = ?
+            LIMIT 1
+        ");
+        $lookup->bind_param("ii", $post_request_id, $recipient_id);
+        $lookup->execute();
+        $req = $lookup->get_result()->fetch_assoc();
+        $lookup->close();
+
+        if (!$req) {
+            $_SESSION["rr_flash"] = ["type" => "error", "msg" => "That request was not found."];
+        } elseif ($req["status"] !== "approved") {
+            $_SESSION["rr_flash"] = ["type" => "error", "msg" => "Only an approved request can be marked as received."];
+        } else {
+            $upd = $conn->prepare("UPDATE donation_requests SET status = 'completed' WHERE id = ?");
+            $upd->bind_param("i", $post_request_id);
+            $upd->execute();
+            $upd->close();
+
+            recompute_donation_status($conn, (int) $req["donation_id"]);
+
+            $_SESSION["rr_flash"] = ["type" => "success", "msg" => "Thank you! Marked as received — this request is now complete."];
+        }
+    }
+
+    header("Location: recipient-requests.php");
+    exit();
+}
 
 
 /*
@@ -61,15 +120,26 @@ $sql = "
     WHERE dr.recipient_id = ?
 
     ORDER BY dr.created_at DESC
+
+    LIMIT ?, ?
 ";
+
+// Total for pagination.
+$rc = $conn->prepare("SELECT COUNT(*) AS c FROM donation_requests WHERE recipient_id = ?");
+$rc->bind_param("i", $recipient_id);
+$rc->execute();
+$rr_total = (int) ($rc->get_result()->fetch_assoc()["c"] ?? 0);
+$rc->close();
+
+$pg = paginate($rr_total, 8);
 
 $stmt = $conn->prepare($sql);
 
 if (!$stmt) {
-    die("Database query failed: " . $conn->error);
+    die("Sorry, something went wrong loading this page. Please try again.");
 }
 
-$stmt->bind_param("i", $recipient_id);
+$stmt->bind_param("iii", $recipient_id, $pg["offset"], $pg["per_page"]);
 
 $stmt->execute();
 
@@ -392,13 +462,6 @@ h1 {
 
 <main class="container">
 
-    <a href="recipient-dashboard.php"
-       class="back">
-
-        ← Back to Dashboard
-
-    </a>
-
 
     <div class="eyebrow">
         RECIPIENT PORTAL
@@ -413,6 +476,26 @@ h1 {
     <p class="subtitle">
         Track the donations you have requested.
     </p>
+
+
+    <?php if (!empty($_SESSION["rr_flash"])):
+        $fl = $_SESSION["rr_flash"];
+        unset($_SESSION["rr_flash"]);
+        $fl_bg = $fl["type"] === "success" ? "#e8f4e8" : "#fde8e8";
+        $fl_fg = $fl["type"] === "success" ? "#27713e" : "#a33a3a";
+    ?>
+        <div class="ud-flash" style="background:<?= $fl_bg ?>;color:<?= $fl_fg ?>;padding:14px 18px;border-radius:10px;margin-bottom:22px;font-weight:600;font-size:14px;display:flex;align-items:center;justify-content:space-between;gap:14px">
+            <span><?= htmlspecialchars($fl["msg"]) ?></span>
+            <button type="button" aria-label="Dismiss" onclick="this.parentNode.remove()" style="background:transparent;border:0;color:inherit;font-size:20px;line-height:1;cursor:pointer;opacity:.6;padding:0 2px">&times;</button>
+        </div>
+        <script>
+        (function(){
+            document.querySelectorAll(".ud-flash").forEach(function(el){
+                setTimeout(function(){ el.style.transition="opacity .4s"; el.style.opacity="0"; setTimeout(function(){ el.remove(); },400); },5000);
+            });
+        })();
+        </script>
+    <?php endif; ?>
 
 
 <?php if ($result->num_rows === 0): ?>
@@ -452,8 +535,11 @@ h1 {
             $request["requested_quantity"] ?? "0"
         );
 
-        $available_quantity = htmlspecialchars(
-            $request["available_quantity"] ?? "0"
+        // What is actually still left on the donation now (not the original total).
+        $available_quantity = (int) donation_remaining(
+            $conn,
+            (int) $request["donation_id"],
+            (int) ($request["available_quantity"] ?? 0)
         );
 
         $beneficiaries = htmlspecialchars(
@@ -489,6 +575,9 @@ h1 {
         );
 
         $status = $request["status"] ?? "pending";
+
+        // The donor's contact details are only revealed once they approve.
+        $contact_visible = in_array($status, ["approved", "completed"], true);
 
         ?>
 
@@ -542,7 +631,7 @@ h1 {
                     <div class="box">
 
                         <div class="label">
-                            Available Quantity
+                            Remaining Available
                         </div>
 
                         <div class="value">
@@ -614,6 +703,8 @@ h1 {
                         <?= $donor_name ?>
                     </div>
 
+                    <?php if ($contact_visible): ?>
+
                     <div class="text">
 
                         Email:
@@ -626,7 +717,37 @@ h1 {
 
                     </div>
 
+                    <?php else: ?>
+
+                    <div class="text" style="color:#8a8f8a">
+                        📞 Contact details are shared once the donor approves your request.
+                    </div>
+
+                    <?php endif; ?>
+
                 </div>
+
+
+                <?php if ($status === "approved"): ?>
+
+                    <form method="post" style="margin-top:22px">
+                        <?php csrf_field(); ?>
+                        <input type="hidden" name="request_id" value="<?= (int) $request["request_id"] ?>">
+                        <input type="hidden" name="action" value="received">
+                        <button type="submit"
+                            style="background:#1f5b3a;color:#fff;border:0;padding:12px 22px;border-radius:10px;font-weight:700;cursor:pointer"
+                            onclick="return confirm('Confirm that you have received this donation?');">
+                            ✓ Mark as Received
+                        </button>
+                    </form>
+
+                <?php elseif ($status === "completed"): ?>
+
+                    <div style="margin-top:22px;color:#40517b;font-weight:700;font-size:14px">
+                        ✓ You confirmed receipt — thank you!
+                    </div>
+
+                <?php endif; ?>
 
 
             </div>
@@ -635,6 +756,15 @@ h1 {
 
 
     <?php endwhile; ?>
+
+    <?php pagination_links($pg); ?>
+
+    <style>
+    .pagination{display:flex;gap:8px;justify-content:center;margin:26px 0;flex-wrap:wrap}
+    .pagination a,.pagination span{padding:8px 13px;border-radius:8px;border:1px solid #e0ddd4;color:#1f5b3a;font-weight:600;font-size:13px;text-decoration:none}
+    .pagination .current{background:#1f5b3a;color:#fff;border-color:#1f5b3a}
+    .pagination a:hover{background:#eef4ea}
+    </style>
 
 
 <?php endif; ?>

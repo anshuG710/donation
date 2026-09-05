@@ -24,14 +24,23 @@ if ($donation_id <= 0) {
 |--------------------------------------------------------------------------
 */
 
+$has_expiry = column_exists($conn, "donations", "expiry_date");
+$expiry_col = $has_expiry ? "d.expiry_date," : "";
+
+$has_campaign = column_exists($conn, "donations", "campaign_id");
+$campaign_col = $has_campaign ? "d.campaign_id," : "";
+
 $sql = "
     SELECT
         d.id,
+        d.donor_id,
         d.title,
         d.description,
         d.quantity,
         d.unit,
         d.item_condition,
+        {$expiry_col}
+        {$campaign_col}
         d.location,
         d.image,
         d.status,
@@ -56,7 +65,7 @@ $sql = "
 $stmt = $conn->prepare($sql);
 
 if (!$stmt) {
-    die("Database query failed: " . $conn->error);
+    die("Sorry, something went wrong loading this page. Please try again.");
 }
 
 $stmt->bind_param("i", $donation_id);
@@ -117,6 +126,23 @@ $donor_name = htmlspecialchars(
 $status = htmlspecialchars(
     $donation["status"] ?? "available"
 );
+
+// Is the current viewer the donor of this item?
+$viewer_id = (int) ($_SESSION["user_id"] ?? 0);
+$is_own_donation = $viewer_id > 0 && (int) ($donation["donor_id"] ?? 0) === $viewer_id;
+
+// Campaign contributions are collected through the drive, not requested here.
+$is_campaign_item = !empty($donation["campaign_id"]);
+
+$expiry_display = "";
+$is_expired = false;
+if (!empty($donation["expiry_date"])) {
+    $expiry_ts = strtotime($donation["expiry_date"]);
+    if ($expiry_ts) {
+        $expiry_display = date("d M Y", $expiry_ts);
+    }
+    $is_expired = $donation["expiry_date"] < date("Y-m-d");
+}
 
 $total_quantity = (int) ($donation["quantity"] ?? 0);
 $remaining_quantity = donation_remaining($conn, $donation_id, $total_quantity);
@@ -565,6 +591,23 @@ h1 {
                 </div>
 
 
+                <?php if ($expiry_display !== ""): ?>
+
+                <div class="check">
+
+                    <i>⏳</i>
+
+                    Best before:
+                    <?= htmlspecialchars($expiry_display) ?>
+                    <?php if ($is_expired): ?>
+                        <strong style="color:#b23b3b">(expired)</strong>
+                    <?php endif; ?>
+
+                </div>
+
+                <?php endif; ?>
+
+
 
                 <div class="check">
 
@@ -602,7 +645,28 @@ h1 {
 
             <!-- REQUEST BUTTON -->
 
-            <?php if ($status === "available" && $remaining_quantity > 0): ?>
+            <?php if ($is_campaign_item): ?>
+
+                <span class="btn btn-disabled">
+
+                    Part of a campaign drive
+
+                </span>
+
+                <div style="margin-top:10px">
+                    <a href="campaign.php?id=<?= (int) $donation["campaign_id"] ?>"
+                       style="color:#1f5b3a;font-weight:700">View the campaign →</a>
+                </div>
+
+            <?php elseif ($is_own_donation): ?>
+
+                <span class="btn btn-disabled">
+
+                    This is your donation
+
+                </span>
+
+            <?php elseif ($status === "available" && $remaining_quantity > 0 && !$is_expired): ?>
 
                 <a
                     class="btn btn-green"
@@ -612,6 +676,14 @@ h1 {
                     Request This Donation →
 
                 </a>
+
+            <?php elseif ($is_expired): ?>
+
+                <span class="btn btn-disabled">
+
+                    Expired — Not Available
+
+                </span>
 
             <?php else: ?>
 

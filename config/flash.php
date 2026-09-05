@@ -41,10 +41,25 @@ function render_flash()
 
         $message = htmlspecialchars($flash["message"] ?? "");
 
-        echo '<div class="flash flash-' . $type . '">'
-            . $message
+        echo '<div class="flash flash-' . $type . '" role="status">'
+            . '<span>' . $message . '</span>'
+            . '<button type="button" class="flash-close" aria-label="Dismiss"'
+            . ' onclick="this.parentNode.remove()">&times;</button>'
             . '</div>';
     }
 
     unset($_SESSION["flash"]);
+
+    // Let the banner be dismissed and also fade itself out after a few seconds.
+    echo '<script>'
+        . '(function(){'
+        . 'document.querySelectorAll(".flash").forEach(function(el){'
+        . 'setTimeout(function(){'
+        . 'el.style.transition="opacity .4s";'
+        . 'el.style.opacity="0";'
+        . 'setTimeout(function(){ el.remove(); },400);'
+        . '},5000);'
+        . '});'
+        . '})();'
+        . '</script>';
 }

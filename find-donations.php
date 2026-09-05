@@ -21,6 +21,14 @@ if (!isset($_SESSION["user_id"])) {
 */
 
 require_once __DIR__ . "/config/database.php";
+require_once __DIR__ . "/config/helpers.php";
+
+$has_expiry = column_exists($conn, "donations", "expiry_date");
+$expiry_col = $has_expiry ? "donations.expiry_date," : "";
+
+// Items donated to a campaign are collected/distributed through the drive,
+// so they are NOT listed here for individual requests.
+$has_campaign = column_exists($conn, "donations", "campaign_id");
 
 
 /*
@@ -64,6 +72,7 @@ $sql = "
         donations.description,
         donations.quantity,
         donations.item_condition,
+        {$expiry_col}
         donations.location,
         donations.image,
         donations.status,
@@ -75,9 +84,9 @@ $sql = "
         categories.name AS category_name,
         users.name AS donor_name
     FROM donations
-    INNER JOIN categories
+    LEFT JOIN categories
         ON donations.category_id = categories.id
-    INNER JOIN users
+    LEFT JOIN users
         ON donations.donor_id = users.id
     WHERE donations.status = 'available'
 ";
@@ -85,20 +94,62 @@ $sql = "
 
 /*
 |--------------------------------------------------------------------------
-| Search By Item
+| Hide Expired Perishable Items
 |--------------------------------------------------------------------------
 */
 
+if ($has_expiry) {
+    $sql .= "
+        AND (donations.expiry_date IS NULL OR donations.expiry_date >= CURDATE())
+    ";
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Hide Fully Reserved Items (nothing left to give)
+|--------------------------------------------------------------------------
+*/
+
+$sql .= "
+    AND donations.quantity > (
+        SELECT COALESCE(SUM(dr2.quantity), 0)
+        FROM donation_requests dr2
+        WHERE dr2.donation_id = donations.id
+          AND dr2.status IN ('approved','completed')
+    )
+";
+
+// Exclude campaign contributions from the public browse list.
+if ($has_campaign) {
+    $sql .= " AND donations.campaign_id IS NULL ";
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Search + Location Filters (bound with a prepared statement)
+|--------------------------------------------------------------------------
+*/
+
+$params = [];
+$types  = "";
+
 if ($search !== "") {
 
-    $search_safe = $conn->real_escape_string($search);
+    // Escape LIKE wildcards so % and _ in the term are treated literally.
+    $like = "%" . str_replace(["\\", "%", "_"], ["\\\\", "\\%", "\\_"], $search) . "%";
 
     $sql .= "
         AND (
-            donations.title LIKE '%$search_safe%'
-            OR donations.description LIKE '%$search_safe%'
+            donations.title LIKE ?
+            OR donations.description LIKE ?
         )
     ";
+
+    $params[] = $like;
+    $params[] = $like;
+    $types   .= "ss";
 }
 
 
@@ -126,11 +177,14 @@ if ($category_id !== "" && is_numeric($category_id)) {
 
 if ($location !== "") {
 
-    $location_safe = $conn->real_escape_string($location);
+    $like_loc = "%" . str_replace(["\\", "%", "_"], ["\\\\", "\\%", "\\_"], $location) . "%";
 
     $sql .= "
-        AND donations.location LIKE '%$location_safe%'
+        AND donations.location LIKE ?
     ";
+
+    $params[] = $like_loc;
+    $types   .= "s";
 }
 
 
@@ -145,11 +199,18 @@ $sql .= "
 ";
 
 
-$result = $conn->query($sql);
+if ($types !== "") {
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param($types, ...$params);
+    $stmt->execute();
+    $result = $stmt->get_result();
+} else {
+    $result = $conn->query($sql);
+}
 
 
 if (!$result) {
-    die("Donation query failed: " . $conn->error);
+    die("Sorry, we couldn't load donations right now. Please try again.");
 }
 
 ?>
@@ -734,12 +795,22 @@ if (!$result) {
 
     <!-- Donations -->
 
+    <?php
+    $pg = paginate($result->num_rows, 9);
+    $shown = 0;
+    if ($result->num_rows > 0 && $pg["offset"] > 0) {
+        $result->data_seek($pg["offset"]);
+    }
+    ?>
+
     <?php if ($result->num_rows > 0): ?>
 
         <div class="donation-grid">
 
 
             <?php while ($donation = $result->fetch_assoc()): ?>
+
+                <?php if ($shown >= $pg["per_page"]) { break; } $shown++; ?>
 
 
                 <div class="card">
@@ -775,7 +846,9 @@ if (!$result) {
 
                             <?php
                             echo htmlspecialchars(
-                                $donation["category_name"]
+                                !empty($donation["category_name"])
+                                    ? $donation["category_name"]
+                                    : "Uncategorized"
                             );
                             ?>
 
@@ -832,6 +905,16 @@ if (!$result) {
                         </div>
 
 
+                        <?php if (!empty($donation["expiry_date"])):
+                            $exp_ts = strtotime($donation["expiry_date"]);
+                        ?>
+                        <div class="location">
+                            ⏳ Best before:
+                            <?= htmlspecialchars($exp_ts ? date("d M Y", $exp_ts) : $donation["expiry_date"]) ?>
+                        </div>
+                        <?php endif; ?>
+
+
                         <div class="status">
                             Available
                         </div>
@@ -854,6 +937,15 @@ if (!$result) {
 
 
         </div>
+
+        <?php pagination_links($pg, ["search" => $search, "category" => $category_id, "location" => $location]); ?>
+
+        <style>
+        .pagination{display:flex;gap:8px;justify-content:center;margin:26px 0;flex-wrap:wrap}
+        .pagination a,.pagination span{padding:8px 13px;border-radius:8px;border:1px solid #e0ddd4;color:#1f5b3a;font-weight:600;font-size:13px;text-decoration:none}
+        .pagination .current{background:#1f5b3a;color:#fff;border-color:#1f5b3a}
+        .pagination a:hover{background:#eef4ea}
+        </style>
 
 
     <?php else: ?>

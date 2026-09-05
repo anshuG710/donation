@@ -154,3 +154,71 @@ CREATE TABLE IF NOT EXISTS activity_log (
 
     INDEX idx_activity_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+--  expiry_date: best-before / expiry date for perishable categories
+--  (Food & Groceries, Medical Supplies). NULL for non-perishable items.
+--  Read/written by add-donation.php and admin-donation-edit.php, guarded
+--  by column_exists() so the app still works before this migration is run.
+ALTER TABLE donations
+    ADD COLUMN IF NOT EXISTS expiry_date DATE NULL AFTER item_condition;
+
+
+-- ============================================================
+--  CAMPAIGNS (admin-run donation drives)
+--  Admin creates/starts/ends campaigns from admin-campaigns.php;
+--  campaigns.php and the landing page read them. Safe to re-run.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS campaigns (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    title           VARCHAR(150) NOT NULL,
+    description     TEXT             NULL,
+    image           VARCHAR(255)     NULL,   -- filename inside uploads/campaigns/
+    goal_quantity   INT          NOT NULL DEFAULT 0,   -- target number of items (0 = no fixed goal)
+    category_id     INT              NULL,
+    partner_org     VARCHAR(150)     NULL,
+    partner_contact VARCHAR(150)     NULL,
+    needed_items    VARCHAR(255)     NULL,   -- e.g. "blankets, dry food, clothes"
+    status          ENUM('active','ended','draft') NOT NULL DEFAULT 'active',
+    start_date      DATE             NULL,
+    end_date        DATE             NULL,
+    created_by      INT              NULL,
+    created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_campaigns_category
+        FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
+
+    INDEX idx_campaigns_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+CREATE TABLE IF NOT EXISTS campaign_points (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    campaign_id   INT NOT NULL,
+    label         VARCHAR(120)     NULL,   -- e.g. "Kathmandu Collection Center"
+    address       VARCHAR(255)     NULL,
+    city          VARCHAR(100)     NULL,
+    contact_phone VARCHAR(40)      NULL,
+    hours         VARCHAR(100)     NULL,   -- e.g. "Sun-Fri, 9am-5pm"
+    map_url       VARCHAR(255)     NULL,
+
+    CONSTRAINT fk_points_campaign
+        FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE,
+
+    INDEX idx_points_campaign (campaign_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+--  Tag a donation to a campaign (optional). No FK so the column is a simple,
+--  idempotent add like expiry_date; a deleted campaign just leaves stale ids
+--  that the queries treat as untagged.
+ALTER TABLE donations
+    ADD COLUMN IF NOT EXISTS campaign_id INT NULL AFTER category_id;
+
+
+--  campaign_status: a donation tagged to a campaign starts 'pending' and only
+--  counts toward the campaign once an admin 'approved' it (prevents fake/spam
+--  contributions inflating the total). NULL for non-campaign donations.
+ALTER TABLE donations
+    ADD COLUMN IF NOT EXISTS campaign_status ENUM('pending','approved','rejected') NULL AFTER campaign_id;

@@ -152,10 +152,41 @@ function donation_remaining($conn, $donation_id, $total = null)
 
 
 /*
-| Recompute a donation's status from how much has been claimed:
-|   claimed >= total  -> completed
+| Sum of quantities actually RECEIVED (requests the recipient has marked
+| 'completed'). Approval alone does not count here — only a confirmed
+| handover.
+*/
+
+function donation_received_qty($conn, $donation_id)
+{
+    $stmt = $conn->prepare(
+        "SELECT COALESCE(SUM(quantity), 0) AS c
+         FROM donation_requests
+         WHERE donation_id = ? AND status = 'completed'"
+    );
+
+    if (!$stmt) {
+        return 0;
+    }
+
+    $donation_id = (int) $donation_id;
+    $stmt->bind_param("i", $donation_id);
+    $stmt->execute();
+    $c = (int) ($stmt->get_result()->fetch_assoc()["c"] ?? 0);
+    $stmt->close();
+
+    return $c;
+}
+
+
+/*
+| Recompute a donation's status:
+|   received >= total -> completed  (all items actually handed over)
 |   otherwise         -> available
-| A donation the admin set to 'cancelled' is left untouched.
+| Approved-but-not-yet-received quantity still counts toward "remaining"
+| (so it can't be over-allocated) but does NOT complete the donation — the
+| recipient must confirm receipt first. A donation the admin set to
+| 'cancelled' is left untouched.
 */
 
 function recompute_donation_status($conn, $donation_id)
@@ -175,8 +206,8 @@ function recompute_donation_status($conn, $donation_id)
         return;
     }
 
-    $claimed = donation_claimed_qty($conn, $donation_id);
-    $new = ($claimed >= (int) $d["quantity"]) ? "completed" : "available";
+    $received = donation_received_qty($conn, $donation_id);
+    $new = ($received >= (int) $d["quantity"]) ? "completed" : "available";
 
     if ($new !== $d["status"]) {
         $u = $conn->prepare("UPDATE donations SET status = ? WHERE id = ?");
@@ -184,6 +215,137 @@ function recompute_donation_status($conn, $donation_id)
         $u->execute();
         $u->close();
     }
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| CAMPAIGN CONTRIBUTIONS
+|--------------------------------------------------------------------------
+|
+| A donation tagged to a campaign starts 'pending' and only counts once an
+| admin approves it. Before that migration exists, everything counts.
+|
+*/
+
+function campaign_has_approval($conn)
+{
+    return column_exists($conn, "donations", "campaign_status");
+}
+
+/*
+| Total quantity collected for a campaign (approved contributions only when
+| the approval column exists; otherwise all tagged contributions).
+*/
+function campaign_collected_qty($conn, $campaign_id)
+{
+    $campaign_id = (int) $campaign_id;
+    $cond = campaign_has_approval($conn) ? " AND campaign_status = 'approved'" : "";
+    $stmt = $conn->prepare(
+        "SELECT COALESCE(SUM(quantity), 0) AS c
+         FROM donations
+         WHERE campaign_id = ? AND status <> 'cancelled'" . $cond
+    );
+    if (!$stmt) {
+        return 0;
+    }
+    $stmt->bind_param("i", $campaign_id);
+    $stmt->execute();
+    $c = (int) ($stmt->get_result()->fetch_assoc()["c"] ?? 0);
+    $stmt->close();
+    return $c;
+}
+
+/*
+| Approved contributions for the public "donations received" list.
+*/
+function campaign_items($conn, $campaign_id)
+{
+    $campaign_id = (int) $campaign_id;
+    $cond = campaign_has_approval($conn) ? " AND d.campaign_status = 'approved'" : "";
+    $out = [];
+    $stmt = $conn->prepare(
+        "SELECT d.title, d.quantity, d.unit, d.item_condition, d.created_at,
+                u.name AS donor_name, c.name AS category_name
+         FROM donations d
+         LEFT JOIN users u ON d.donor_id = u.id
+         LEFT JOIN categories c ON d.category_id = c.id
+         WHERE d.campaign_id = ? AND d.status <> 'cancelled'" . $cond . "
+         ORDER BY d.created_at DESC"
+    );
+    if (!$stmt) {
+        return $out;
+    }
+    $stmt->bind_param("i", $campaign_id);
+    $stmt->execute();
+    $r = $stmt->get_result();
+    while ($row = $r->fetch_assoc()) {
+        $out[] = $row;
+    }
+    $stmt->close();
+    return $out;
+}
+
+/*
+| Category breakdown of approved contributions: [category_name => total qty].
+*/
+function campaign_category_breakdown($conn, $campaign_id)
+{
+    $campaign_id = (int) $campaign_id;
+    $cond = campaign_has_approval($conn) ? " AND d.campaign_status = 'approved'" : "";
+    $out = [];
+    $stmt = $conn->prepare(
+        "SELECT COALESCE(c.name, 'Uncategorized') AS cat,
+                COALESCE(SUM(d.quantity), 0) AS qty
+         FROM donations d
+         LEFT JOIN categories c ON d.category_id = c.id
+         WHERE d.campaign_id = ? AND d.status <> 'cancelled'" . $cond . "
+         GROUP BY cat
+         ORDER BY qty DESC"
+    );
+    if (!$stmt) {
+        return $out;
+    }
+    $stmt->bind_param("i", $campaign_id);
+    $stmt->execute();
+    $r = $stmt->get_result();
+    while ($row = $r->fetch_assoc()) {
+        $out[$row["cat"]] = (int) $row["qty"];
+    }
+    $stmt->close();
+    return $out;
+}
+
+/*
+| Pending contributions awaiting admin approval (admin campaigns page).
+*/
+function campaign_pending_items($conn, $campaign_id)
+{
+    $out = [];
+    if (!campaign_has_approval($conn)) {
+        return $out;
+    }
+    $campaign_id = (int) $campaign_id;
+    $stmt = $conn->prepare(
+        "SELECT d.id, d.title, d.quantity, d.unit, d.created_at,
+                u.name AS donor_name, c.name AS category_name
+         FROM donations d
+         LEFT JOIN users u ON d.donor_id = u.id
+         LEFT JOIN categories c ON d.category_id = c.id
+         WHERE d.campaign_id = ? AND d.campaign_status = 'pending' AND d.status <> 'cancelled'
+         ORDER BY d.created_at ASC"
+    );
+    if (!$stmt) {
+        return $out;
+    }
+    $stmt->bind_param("i", $campaign_id);
+    $stmt->execute();
+    $r = $stmt->get_result();
+    while ($row = $r->fetch_assoc()) {
+        $out[] = $row;
+    }
+    $stmt->close();
+    return $out;
 }
 
 

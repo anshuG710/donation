@@ -23,6 +23,9 @@ if (!isset($_SESSION["user_id"])) {
 */
 
 require_once __DIR__ . "/config/database.php";
+require_once __DIR__ . "/config/helpers.php";
+require_once __DIR__ . "/config/conditions.php";
+require_once __DIR__ . "/config/csrf.php";
 
 
 /*
@@ -64,6 +67,31 @@ if ($result_categories) {
 
 /*
 |--------------------------------------------------------------------------
+| ACTIVE CAMPAIGNS (optional "contribute to a campaign" dropdown)
+|--------------------------------------------------------------------------
+*/
+
+$active_campaigns = [];
+
+if (table_exists($conn, "campaigns")) {
+
+    $rc = $conn->query("SELECT id, title FROM campaigns WHERE status = 'active' ORDER BY created_at DESC");
+
+    if ($rc) {
+
+        while ($row = $rc->fetch_assoc()) {
+
+            $active_campaigns[] = $row;
+
+        }
+
+    }
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
 | FORM SUBMISSION
 |--------------------------------------------------------------------------
 */
@@ -81,11 +109,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $category_id = intval($_POST["category_id"] ?? 0);
 
+    $campaign_id = intval($_POST["campaign_id"] ?? 0);
+
     $quantity = intval($_POST["quantity"] ?? 0);
 
     $unit = trim($_POST["unit"] ?? "");
 
     $item_condition = trim($_POST["item_condition"] ?? "");
+
+    $expiry_date = trim($_POST["expiry_date"] ?? "");
 
     $location = trim($_POST["location"] ?? "");
 
@@ -98,7 +130,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     |--------------------------------------------------------------------------
     */
 
-    if (
+    $category_name = category_name_by_id($conn, $category_id);
+    $expiry_needed = category_needs_expiry($category_name);
+    $today = date("Y-m-d");
+
+    if (!csrf_verify()) {
+
+        $error = "Security check failed. Please refresh the page and try again.";
+
+    } elseif (
         $title === "" ||
         $category_id <= 0 ||
         $quantity <= 0 ||
@@ -108,6 +148,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     ) {
 
         $error = "Please fill in all required fields.";
+
+    } elseif (!is_valid_condition($category_name, $item_condition)) {
+
+        $error = "Please choose a valid condition for the selected category.";
+
+    } elseif ($expiry_needed && $expiry_date === "") {
+
+        $error = "Please enter an expiry / best-before date for this item.";
+
+    } elseif ($expiry_needed && $expiry_date < $today) {
+
+        $error = "The expiry date must be today or a future date.";
 
     } else {
 
@@ -259,24 +311,49 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             $status = "available";
 
+            // Only store an expiry date for categories that need one.
+            $expiry_for_db = ($expiry_needed && $expiry_date !== "") ? $expiry_date : null;
 
-            $sql = "
-                INSERT INTO donations
-                (
-                    donor_id,
-                    category_id,
-                    title,
-                    description,
-                    quantity,
-                    unit,
-                    item_condition,
-                    location,
-                    image,
-                    status
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ";
+            // Optional campaign tag — only if it's a real, active campaign.
+            $campaign_for_db = null;
+            if ($campaign_id > 0 && table_exists($conn, "campaigns")) {
+                $ck = $conn->prepare("SELECT id FROM campaigns WHERE id = ? AND status = 'active' LIMIT 1");
+                $ck->bind_param("i", $campaign_id);
+                $ck->execute();
+                if ($ck->get_result()->num_rows > 0) {
+                    $campaign_for_db = $campaign_id;
+                }
+                $ck->close();
+            }
 
+            // Build the insert dynamically so optional columns (added by later
+            // migrations) are only referenced when they actually exist.
+            $cols  = ["donor_id", "category_id", "title", "description", "quantity",
+                      "unit", "item_condition", "location", "image", "status"];
+            $vals  = [$user_id, $category_id, $title, $description, $quantity,
+                      $unit, $item_condition, $location, $image_name, $status];
+            $types = "iississsss";
+
+            if (column_exists($conn, "donations", "expiry_date")) {
+                $cols[] = "expiry_date";
+                $vals[] = $expiry_for_db;
+                $types .= "s";
+            }
+            if (column_exists($conn, "donations", "campaign_id")) {
+                $cols[] = "campaign_id";
+                $vals[] = $campaign_for_db;
+                $types .= "i";
+            }
+
+            // A campaign contribution starts pending until an admin approves it.
+            if (column_exists($conn, "donations", "campaign_status")) {
+                $cols[] = "campaign_status";
+                $vals[] = ($campaign_for_db !== null) ? "pending" : null;
+                $types .= "s";
+            }
+
+            $placeholders = implode(", ", array_fill(0, count($cols), "?"));
+            $sql = "INSERT INTO donations (" . implode(", ", $cols) . ") VALUES (" . $placeholders . ")";
 
             $stmt = $conn->prepare($sql);
 
@@ -287,20 +364,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             } else {
 
-
-                $stmt->bind_param(
-                    "iississsss",
-                    $user_id,
-                    $category_id,
-                    $title,
-                    $description,
-                    $quantity,
-                    $unit,
-                    $item_condition,
-                    $location,
-                    $image_name,
-                    $status
-                );
+                $stmt->bind_param($types, ...$vals);
 
 
                 if ($stmt->execute()) {
@@ -769,6 +833,8 @@ header {
                 style="display:grid;grid-template-columns:1fr 1fr;gap:18px"
             >
 
+                <?php csrf_field(); ?>
+
 
                 <!-- ITEM NAME -->
 
@@ -805,6 +871,7 @@ header {
 
 
                     <select
+                        id="category_id"
                         name="category_id"
                         required
                     >
@@ -850,6 +917,39 @@ header {
                     </select>
 
                 </div>
+
+
+
+                <!-- CAMPAIGN (optional) -->
+
+                <?php if (!empty($active_campaigns)): ?>
+
+                <div class="field">
+
+                    <label>
+                        Contribute to a campaign (optional)
+                    </label>
+
+                    <select name="campaign_id">
+
+                        <option value="0">— None —</option>
+
+                        <?php foreach ($active_campaigns as $camp): ?>
+
+                            <option
+                                value="<?php echo (int) $camp["id"]; ?>"
+                                <?php echo (($_POST["campaign_id"] ?? $_GET["campaign"] ?? "") == $camp["id"]) ? "selected" : ""; ?>
+                            >
+                                <?php echo htmlspecialchars($camp["title"]); ?>
+                            </option>
+
+                        <?php endforeach; ?>
+
+                    </select>
+
+                </div>
+
+                <?php endif; ?>
 
 
 
@@ -1015,46 +1115,70 @@ header {
                     </label>
 
 
+                    <?php
+                        $posted_cat_id   = intval($_POST["category_id"] ?? 0);
+                        $posted_cat_name = $posted_cat_id > 0
+                            ? category_name_by_id($conn, $posted_cat_id)
+                            : "";
+                        $cond_options    = conditions_for_category($posted_cat_name);
+                        $posted_cond     = $_POST["item_condition"] ?? "";
+                    ?>
+
                     <select
+                        id="item_condition"
                         name="item_condition"
                         required
                     >
 
                         <option value="">
-
                             Select Condition
-
                         </option>
 
+                        <?php foreach ($cond_options as $cond): ?>
 
-                        <option value="New">
+                            <option
+                                value="<?php echo htmlspecialchars($cond); ?>"
+                                <?php echo ($posted_cond === $cond) ? "selected" : ""; ?>
+                            >
+                                <?php echo htmlspecialchars($cond); ?>
+                            </option>
 
-                            New
-
-                        </option>
-
-
-                        <option value="Like New">
-
-                            Like New
-
-                        </option>
-
-
-                        <option value="Good">
-
-                            Good
-
-                        </option>
-
-
-                        <option value="Used">
-
-                            Used
-
-                        </option>
+                        <?php endforeach; ?>
 
                     </select>
+
+                </div>
+
+
+
+                <!-- EXPIRY / BEST-BEFORE (perishable categories only) -->
+
+                <?php
+                    $posted_expiry_needed = category_needs_expiry($posted_cat_name);
+                    $posted_expiry        = htmlspecialchars($_POST["expiry_date"] ?? "");
+                ?>
+
+                <div
+                    class="field"
+                    id="expiry_field"
+                    style="<?php echo $posted_expiry_needed ? "" : "display:none"; ?>"
+                >
+
+                    <label>
+
+                        Expiry / Best-before date *
+
+                    </label>
+
+
+                    <input
+                        type="date"
+                        id="expiry_date"
+                        name="expiry_date"
+                        min="<?php echo date("Y-m-d"); ?>"
+                        value="<?php echo $posted_expiry; ?>"
+                        <?php echo $posted_expiry_needed ? "required" : ""; ?>
+                    >
 
                 </div>
 
@@ -1170,6 +1294,72 @@ header {
 
 
 </main>
+
+
+<!--
+|--------------------------------------------------------------------------
+| CATEGORY-AWARE CONDITION + EXPIRY
+|--------------------------------------------------------------------------
+| When the donor changes the category, rebuild the Condition dropdown to
+| the options valid for that category and show/hide the expiry date field.
+| The map comes from config/conditions.php (the single source of truth),
+| and the server re-validates on submit, so this is only convenience.
+-->
+<script>
+(function () {
+
+    var MAP  = <?php echo condition_map_json($conn); ?>;
+    var cat  = document.getElementById("category_id");
+    var cond = document.getElementById("item_condition");
+    var expField = document.getElementById("expiry_field");
+    var expInput = document.getElementById("expiry_date");
+
+    if (!cat || !cond) {
+        return;
+    }
+
+    function currentEntry() {
+        var v = cat.value || "";
+        return MAP[v] || MAP[""];
+    }
+
+    function refresh(keepSelected) {
+
+        var entry = currentEntry();
+        var prev  = keepSelected ? cond.value : "";
+
+        cond.innerHTML = '<option value="">Select Condition</option>';
+
+        entry.conditions.forEach(function (c) {
+            var o = document.createElement("option");
+            o.value = c;
+            o.textContent = c;
+            if (c === prev) {
+                o.selected = true;
+            }
+            cond.appendChild(o);
+        });
+
+        if (expField && expInput) {
+            if (entry.expiry) {
+                expField.style.display = "";
+                expInput.setAttribute("required", "required");
+            } else {
+                expField.style.display = "none";
+                expInput.removeAttribute("required");
+                expInput.value = "";
+            }
+        }
+    }
+
+    cat.addEventListener("change", function () { refresh(false); });
+
+    // First load: keep whatever the server already rendered (e.g. after a
+    // validation error) and align the expiry field with the current category.
+    refresh(true);
+
+})();
+</script>
 
 
 </body>

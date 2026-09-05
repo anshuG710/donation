@@ -83,9 +83,17 @@
                     color:#1c261f;
                     background:#fff
                 }
+                .btn-outline:hover {
+                    background:var(--green);
+                    border-color:var(--green);
+                    color:#fff
+                }
                 .btn-orange {
                     background:var(--orange);
                     color:#fff
+                }
+                .btn-orange:hover {
+                    background:#d97a0f
                 }
                 header {
                     height:74px;
@@ -875,7 +883,7 @@
                         </p>
                         <div class="hero-actions"><a class="btn btn-green" href="add-donation.php">♡ Donate Items</a><a class="btn btn-outline" href="find-donations.php">Browse Donations</a>
                         </div>
-                        <div style="margin-top:25px;font-size:12px;color:#687068">● ● ● ● &nbsp; <b>500+</b> people donated items<br><span style="margin-left:50px">Join hands to create a better Nepal</span>
+                        <div style="margin-top:25px;font-size:12px;color:#687068">● ● ● ● &nbsp; <b id="hero-stat">0</b> items donated so far<br><span style="margin-left:50px">Join hands to create a better Nepal</span>
                         </div>
                     </div>
 
@@ -943,7 +951,7 @@
                             </div>
                             <div class="check"><i>✓</i> Build a better future for everyone
                             </div>
-                        </div><a class="btn btn-green" href="register.html">Learn More →</a>
+                        </div><a class="btn btn-green" href="#campaigns">Learn More →</a>
                     </div>
                 </div>
             </section>
@@ -956,62 +964,47 @@
                     </h2>
                     <p style="color:#737970;font-size:13px">Support our ongoing campaigns and be a part of real change.
                     </p>
-                    <div class="campaign-grid">
-
-                        <div class="card">
-                            <div class="cardimg"><img src="https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=900&q=85"><span class="tag">Education</span>
-                            </div>
-                            <div class="cardbody">
-                                <h3>Support Rural Education
-                                </h3>
-                                <p>Help us provide books, stationery and school materials to underserved children.
-                                </p>
-                                <div class="money"><span>Raised: NRP 120,000</span><span>Goal: NRP 200,000</span>
-                                </div>
-                                <div class="progress">
-                                    <div style="width:60%">
-                                    </div>
-                                </div><small>60%</small>
-                            </div>
-                        </div>
-
-                        <div class="card">
-                            <div class="cardimg"><img src="https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=900&q=85"><span class="tag orange">Clothes</span>
-                            </div>
-                            <div class="cardbody">
-                                <h3>Winter Clothes Distribution
-                                </h3>
-                                <p>Collecting warm clothes and blankets for people in need this winter.
-                                </p>
-                                <div class="money"><span>Raised: NRP 85,000</span><span>Goal: NRP 150,000</span>
-                                </div>
-                                <div class="progress orange">
-                                    <div style="width:57%">
-                                    </div>
-                                </div><small>57%</small>
-                            </div>
-                        </div>
-
-                        <div class="card">
-                            <div class="cardimg"><img src="https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&w=900&q=85"><span class="tag">Food</span>
-                            </div>
-                            <div class="cardbody">
-                                <h3>Food For All
-                                </h3>
-                                <p>Help us provide nutritious meals to hungry families and public shelters.
-                                </p>
-                                <div class="money"><span>Raised: NRP 95,000</span><span>Goal: NRP 150,000</span>
-                                </div>
-                                <div class="progress">
-                                    <div style="width:63%">
-                                    </div>
-                                </div><small>63%</small>
-                            </div>
-                        </div>
-
-                    </div><a class="btn btn-green" style="margin-top:28px" href="find-donations.php">View All Campaigns →</a>
+                    <div class="campaign-grid" id="campaign-grid">
+                        <p style="grid-column:1/-1;color:#8a8f88">Loading campaigns…</p>
+                    </div>
+                    <a class="btn btn-green" style="margin-top:28px" href="campaigns.php">View All Campaigns →</a>
                 </div>
             </section>
+
+            <style>
+            .ccard-link{display:block;text-decoration:none;color:inherit;transition:transform .18s ease, box-shadow .18s ease}
+            .ccard-link .card{cursor:pointer;height:100%;transition:box-shadow .18s ease}
+            .ccard-link:hover{transform:translateY(-5px)}
+            .ccard-link:hover .card{box-shadow:0 18px 44px rgba(31,56,32,.14)}
+            </style>
+
+            <script>
+            (function(){
+                function esc(s){return (s||'').replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];});}
+                var grid = document.getElementById('campaign-grid');
+                if(!grid){return;}
+                fetch('campaigns-json.php').then(function(r){return r.json();}).then(function(list){
+                    if(!Array.isArray(list) || list.length===0){
+                        grid.innerHTML = '<p style="grid-column:1/-1;color:#8a8f88">No active campaigns right now — check back soon.</p>';
+                        return;
+                    }
+                    grid.innerHTML = list.map(function(c){
+                        var img = c.image
+                            ? '<img src="'+esc(c.image)+'">'
+                            : '<img alt="" src="data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'8\' height=\'8\'><rect width=\'8\' height=\'8\' fill=\'%23e3ece0\'/></svg>">';
+                        var tag = c.category_name ? '<span class="tag">'+esc(c.category_name)+'</span>' : '';
+                        var prog = c.goal>0
+                            ? '<div class="money"><span>Collected: '+c.collected+'</span><span>Goal: '+c.goal+' items</span></div><div class="progress"><div style="width:'+c.pct+'%"></div></div><small>'+c.pct+'%</small>'
+                            : '<div class="money"><span>Collected: '+c.collected+' items</span></div>';
+                        return '<a class="ccard-link" href="campaign.php?id='+c.id+'"><div class="card"><div class="cardimg">'+img+tag+'</div>'
+                            + '<div class="cardbody"><h3>'+esc(c.title)+'</h3>'
+                            + '<p>'+esc(c.description||'')+'</p>'+prog+'</div></div></a>';
+                    }).join('');
+                }).catch(function(){
+                    grid.innerHTML = '<p style="grid-column:1/-1;color:#8a8f88">Couldn\'t load campaigns.</p>';
+                });
+            })();
+            </script>
 
             <section class="stats">
                 <div class="stats-grid">
@@ -1090,6 +1083,7 @@
       animate(document.getElementById('stat-beneficiaries'), d.beneficiaries);
       animate(document.getElementById('stat-donors'), d.donors);
       animate(document.getElementById('stat-recipients'), d.recipients);
+      animate(document.getElementById('hero-stat'), d.items);
     })
     .catch(function(){ /* leave zeros if the endpoint is unreachable */ });
 
