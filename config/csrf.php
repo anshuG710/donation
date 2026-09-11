@@ -2,74 +2,51 @@
 
 /*
 |--------------------------------------------------------------------------
-| CSRF PROTECTION
+| CSRF Protection
 |--------------------------------------------------------------------------
 |
-| Small helpers used by every admin form that changes data.
-| A session must already be started before these are called
-| (admin-guard.php starts it).
+| Cross-Site Request Forgery (CSRF) token generation and validation.
+| Used to protect forms from unauthorized submissions.
 |
 */
 
-
-/*
-| Return the current CSRF token, creating one if needed.
-*/
-
-function csrf_token()
-{
-    if (empty($_SESSION["csrf_token"])) {
+/**
+ * Initialize CSRF token in session
+ */
+function csrf_init() {
+    if (!isset($_SESSION["csrf_token"])) {
         $_SESSION["csrf_token"] = bin2hex(random_bytes(32));
     }
+}
 
+/**
+ * Get the current CSRF token
+ */
+function csrf_token() {
+    csrf_init();
     return $_SESSION["csrf_token"];
 }
 
-
-/*
-| Output a hidden <input> holding the token. Drop this inside any
-| POST form that performs an action.
-*/
-
-function csrf_field()
-{
-    $token = htmlspecialchars(csrf_token());
-
-    echo '<input type="hidden" name="csrf_token" value="' . $token . '">';
+/**
+ * Output CSRF token as a hidden form field
+ */
+function csrf_field() {
+    echo '<input type="hidden" name="csrf_token" value="' . htmlspecialchars(csrf_token()) . '">';
 }
 
-
-/*
-| Verify the token submitted with a POST request.
-| Returns true when valid, false otherwise.
-*/
-
-function csrf_verify()
-{
-    $sent = $_POST["csrf_token"] ?? "";
-
-    $stored = $_SESSION["csrf_token"] ?? "";
-
-    if ($sent === "" || $stored === "") {
-        return false;
+/**
+ * Verify CSRF token from POST request
+ */
+function csrf_verify() {
+    if ($_SERVER["REQUEST_METHOD"] !== "POST") {
+        return true;
     }
-
-    return hash_equals($stored, $sent);
+    
+    $token_from_request = $_POST["csrf_token"] ?? "";
+    $token_from_session = $_SESSION["csrf_token"] ?? "";
+    
+    // Constant-time comparison to prevent timing attacks
+    return hash_equals($token_from_session, $token_from_request);
 }
 
-
-/*
-| Convenience: verify or stop with a flash message + redirect.
-| Call at the top of any action handler.
-*/
-
-function csrf_require($redirect_to)
-{
-    if (!csrf_verify()) {
-
-        set_flash("error", "Security check failed. Please try again.");
-
-        header("Location: " . $redirect_to);
-        exit();
-    }
-}
+?>

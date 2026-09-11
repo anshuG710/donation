@@ -2,495 +2,157 @@
 
 /*
 |--------------------------------------------------------------------------
-| SHARED HELPERS
+| Helper Functions
 |--------------------------------------------------------------------------
 |
-| Small view/query utilities used across the admin pages.
+| Utility functions used throughout the DONATE+ Nepal application.
 |
 */
 
-
-/*
-| Escape shortcut for echoing user data into HTML.
-*/
-
-function e($value)
-{
-    return htmlspecialchars((string) ($value ?? ""), ENT_QUOTES, "UTF-8");
+/**
+ * Check if a column exists in a table
+ * Used to support progressive database migrations
+ */
+function column_exists($conn, $table, $column) {
+    $result = $conn->query("SHOW COLUMNS FROM `$table` LIKE '$column'");
+    return $result && $result->num_rows > 0;
 }
 
+/**
+ * Check if a table exists in the database
+ * Used for optional features that may not be migrated yet
+ */
+function table_exists($conn, $table) {
+    $result = $conn->query("SHOW TABLES LIKE '$table'");
+    return $result && $result->num_rows > 0;
+}
 
-/*
-| Check whether a table exists in the current database. Cached per
-| request. Used so audit logging degrades gracefully when the
-| activity_log table hasn't been created yet.
-*/
-
-function table_exists($conn, $table)
-{
-    static $cache = [];
-
-    if (isset($cache[$table])) {
-        return $cache[$table];
+/**
+ * Get category name by ID
+ * Returns the category name or empty string if not found
+ */
+function category_name_by_id($conn, $category_id) {
+    if ($category_id <= 0) {
+        return "";
     }
-
-    $stmt = $conn->prepare(
-        "SELECT 1
-         FROM information_schema.tables
-         WHERE table_schema = DATABASE()
-           AND table_name   = ?
-         LIMIT 1"
-    );
-
+    
+    $stmt = $conn->prepare("SELECT name FROM categories WHERE id = ? LIMIT 1");
     if (!$stmt) {
-        return $cache[$table] = false;
+        return "";
     }
-
-    $stmt->bind_param("s", $table);
+    
+    $stmt->bind_param("i", $category_id);
     $stmt->execute();
-    $exists = $stmt->get_result()->num_rows > 0;
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
     $stmt->close();
-
-    return $cache[$table] = $exists;
+    
+    return $row ? $row["name"] : "";
 }
 
-
-/*
-| Record an admin action in the activity_log. Completely best-effort:
-| if the table is missing or anything fails, it silently does nothing
-| so it can never break the action that triggered it.
-*/
-
-function log_activity($conn, $admin_id, $action, $detail = "")
-{
-    if (!table_exists($conn, "activity_log")) {
-        return;
-    }
-
-    $stmt = $conn->prepare(
-        "INSERT INTO activity_log (admin_id, action, detail) VALUES (?, ?, ?)"
-    );
-
-    if (!$stmt) {
-        return;
-    }
-
-    $admin_id = (int) $admin_id;
-    $action   = mb_substr((string) $action, 0, 80);
-    $detail   = mb_substr((string) $detail, 0, 255);
-
-    $stmt->bind_param("iss", $admin_id, $action, $detail);
-    @$stmt->execute();
-    $stmt->close();
+/**
+ * Format currency for display
+ */
+function format_currency($amount) {
+    return "Rs. " . number_format($amount, 2);
 }
 
-
-/*
-|--------------------------------------------------------------------------
-| DONATION QUANTITY HELPERS
-|--------------------------------------------------------------------------
-|
-| "remaining" is computed live: the donation's total quantity minus
-| everything already approved or completed. No schema change needed.
-|
-*/
-
-/*
-| Sum of quantities already claimed (approved + completed requests).
-*/
-
-function donation_claimed_qty($conn, $donation_id)
-{
-    $stmt = $conn->prepare(
-        "SELECT COALESCE(SUM(quantity), 0) AS c
-         FROM donation_requests
-         WHERE donation_id = ? AND status IN ('approved','completed')"
-    );
-
-    if (!$stmt) {
-        return 0;
+/**
+ * Format date for display
+ */
+function format_date($date) {
+    if (!$date) {
+        return "N/A";
     }
-
-    $donation_id = (int) $donation_id;
-    $stmt->bind_param("i", $donation_id);
-    $stmt->execute();
-    $c = (int) ($stmt->get_result()->fetch_assoc()["c"] ?? 0);
-    $stmt->close();
-
-    return $c;
+    return date("M d, Y", strtotime($date));
 }
 
-
-/*
-| Remaining quantity = total - claimed (never below 0). Pass $total to
-| avoid an extra lookup if you already have the donation's quantity.
-*/
-
-function donation_remaining($conn, $donation_id, $total = null)
-{
-    $donation_id = (int) $donation_id;
-
-    if ($total === null) {
-        $stmt = $conn->prepare("SELECT quantity FROM donations WHERE id = ? LIMIT 1");
-        if (!$stmt) {
-            return 0;
-        }
-        $stmt->bind_param("i", $donation_id);
-        $stmt->execute();
-        $row = $stmt->get_result()->fetch_assoc();
-        $stmt->close();
-        if (!$row) {
-            return 0;
-        }
-        $total = (int) $row["quantity"];
+/**
+ * Format datetime for display
+ */
+function format_datetime($datetime) {
+    if (!$datetime) {
+        return "N/A";
     }
-
-    $remaining = (int) $total - donation_claimed_qty($conn, $donation_id);
-
-    return $remaining < 0 ? 0 : $remaining;
+    return date("M d, Y h:i A", strtotime($datetime));
 }
 
-
-/*
-| Sum of quantities actually RECEIVED (requests the recipient has marked
-| 'completed'). Approval alone does not count here — only a confirmed
-| handover.
-*/
-
-function donation_received_qty($conn, $donation_id)
-{
-    $stmt = $conn->prepare(
-        "SELECT COALESCE(SUM(quantity), 0) AS c
-         FROM donation_requests
-         WHERE donation_id = ? AND status = 'completed'"
-    );
-
-    if (!$stmt) {
-        return 0;
-    }
-
-    $donation_id = (int) $donation_id;
-    $stmt->bind_param("i", $donation_id);
-    $stmt->execute();
-    $c = (int) ($stmt->get_result()->fetch_assoc()["c"] ?? 0);
-    $stmt->close();
-
-    return $c;
+/**
+ * Sanitize string for display (prevent XSS)
+ */
+function sanitize($str) {
+    return htmlspecialchars($str, ENT_QUOTES, "UTF-8");
 }
 
+/**
+ * Check if user is logged in
+ */
+function is_logged_in() {
+    return isset($_SESSION["user_id"]) && !empty($_SESSION["user_id"]);
+}
 
-/*
-| Recompute a donation's status:
-|   received >= total -> completed  (all items actually handed over)
-|   otherwise         -> available
-| Approved-but-not-yet-received quantity still counts toward "remaining"
-| (so it can't be over-allocated) but does NOT complete the donation — the
-| recipient must confirm receipt first. A donation the admin set to
-| 'cancelled' is left untouched.
-*/
+/**
+ * Check if user has a specific role
+ */
+function has_role($role) {
+    return isset($_SESSION["user_role"]) && $_SESSION["user_role"] === $role;
+}
 
-function recompute_donation_status($conn, $donation_id)
-{
-    $donation_id = (int) $donation_id;
-
-    $stmt = $conn->prepare("SELECT quantity, status FROM donations WHERE id = ? LIMIT 1");
-    if (!$stmt) {
-        return;
-    }
-    $stmt->bind_param("i", $donation_id);
-    $stmt->execute();
-    $d = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
-
-    if (!$d || $d["status"] === "cancelled") {
-        return;
-    }
-
-    $received = donation_received_qty($conn, $donation_id);
-    $new = ($received >= (int) $d["quantity"]) ? "completed" : "available";
-
-    if ($new !== $d["status"]) {
-        $u = $conn->prepare("UPDATE donations SET status = ? WHERE id = ?");
-        $u->bind_param("si", $new, $donation_id);
-        $u->execute();
-        $u->close();
+/**
+ * Redirect to login if not authenticated
+ */
+function require_login() {
+    if (!is_logged_in()) {
+        header("Location: login.html");
+        exit();
     }
 }
 
-
-/*
-|--------------------------------------------------------------------------
-| CAMPAIGN CONTRIBUTIONS
-|--------------------------------------------------------------------------
-|
-| A donation tagged to a campaign starts 'pending' and only counts once an
-| admin approves it. Before that migration exists, everything counts.
-|
-*/
-
-function campaign_has_approval($conn)
-{
-    return column_exists($conn, "donations", "campaign_status");
-}
-
-/*
-| Total quantity collected for a campaign (approved contributions only when
-| the approval column exists; otherwise all tagged contributions).
-*/
-function campaign_collected_qty($conn, $campaign_id)
-{
-    $campaign_id = (int) $campaign_id;
-    $cond = campaign_has_approval($conn) ? " AND campaign_status = 'approved'" : "";
-    $stmt = $conn->prepare(
-        "SELECT COALESCE(SUM(quantity), 0) AS c
-         FROM donations
-         WHERE campaign_id = ? AND status <> 'cancelled'" . $cond
-    );
-    if (!$stmt) {
-        return 0;
-    }
-    $stmt->bind_param("i", $campaign_id);
-    $stmt->execute();
-    $c = (int) ($stmt->get_result()->fetch_assoc()["c"] ?? 0);
-    $stmt->close();
-    return $c;
-}
-
-/*
-| Approved contributions for the public "donations received" list.
-*/
-function campaign_items($conn, $campaign_id)
-{
-    $campaign_id = (int) $campaign_id;
-    $cond = campaign_has_approval($conn) ? " AND d.campaign_status = 'approved'" : "";
-    $out = [];
-    $stmt = $conn->prepare(
-        "SELECT d.title, d.quantity, d.unit, d.item_condition, d.created_at,
-                u.name AS donor_name, c.name AS category_name
-         FROM donations d
-         LEFT JOIN users u ON d.donor_id = u.id
-         LEFT JOIN categories c ON d.category_id = c.id
-         WHERE d.campaign_id = ? AND d.status <> 'cancelled'" . $cond . "
-         ORDER BY d.created_at DESC"
-    );
-    if (!$stmt) {
-        return $out;
-    }
-    $stmt->bind_param("i", $campaign_id);
-    $stmt->execute();
-    $r = $stmt->get_result();
-    while ($row = $r->fetch_assoc()) {
-        $out[] = $row;
-    }
-    $stmt->close();
-    return $out;
-}
-
-/*
-| Category breakdown of approved contributions: [category_name => total qty].
-*/
-function campaign_category_breakdown($conn, $campaign_id)
-{
-    $campaign_id = (int) $campaign_id;
-    $cond = campaign_has_approval($conn) ? " AND d.campaign_status = 'approved'" : "";
-    $out = [];
-    $stmt = $conn->prepare(
-        "SELECT COALESCE(c.name, 'Uncategorized') AS cat,
-                COALESCE(SUM(d.quantity), 0) AS qty
-         FROM donations d
-         LEFT JOIN categories c ON d.category_id = c.id
-         WHERE d.campaign_id = ? AND d.status <> 'cancelled'" . $cond . "
-         GROUP BY cat
-         ORDER BY qty DESC"
-    );
-    if (!$stmt) {
-        return $out;
-    }
-    $stmt->bind_param("i", $campaign_id);
-    $stmt->execute();
-    $r = $stmt->get_result();
-    while ($row = $r->fetch_assoc()) {
-        $out[$row["cat"]] = (int) $row["qty"];
-    }
-    $stmt->close();
-    return $out;
-}
-
-/*
-| Pending contributions awaiting admin approval (admin campaigns page).
-*/
-function campaign_pending_items($conn, $campaign_id)
-{
-    $out = [];
-    if (!campaign_has_approval($conn)) {
-        return $out;
-    }
-    $campaign_id = (int) $campaign_id;
-    $stmt = $conn->prepare(
-        "SELECT d.id, d.title, d.quantity, d.unit, d.created_at,
-                u.name AS donor_name, c.name AS category_name
-         FROM donations d
-         LEFT JOIN users u ON d.donor_id = u.id
-         LEFT JOIN categories c ON d.category_id = c.id
-         WHERE d.campaign_id = ? AND d.campaign_status = 'pending' AND d.status <> 'cancelled'
-         ORDER BY d.created_at ASC"
-    );
-    if (!$stmt) {
-        return $out;
-    }
-    $stmt->bind_param("i", $campaign_id);
-    $stmt->execute();
-    $r = $stmt->get_result();
-    while ($row = $r->fetch_assoc()) {
-        $out[] = $row;
-    }
-    $stmt->close();
-    return $out;
-}
-
-
-/*
-| Check whether a column exists on a table. Used so pages degrade
-| gracefully when a migration hasn't been run yet (e.g. is_active).
-| Result is cached per request.
-*/
-
-function column_exists($conn, $table, $column)
-{
-    static $cache = [];
-
-    $key = $table . "." . $column;
-
-    if (isset($cache[$key])) {
-        return $cache[$key];
-    }
-
-    $stmt = $conn->prepare(
-        "SELECT 1
-         FROM information_schema.columns
-         WHERE table_schema = DATABASE()
-           AND table_name   = ?
-           AND column_name  = ?
-         LIMIT 1"
-    );
-
-    if (!$stmt) {
-        return $cache[$key] = false;
-    }
-
-    $stmt->bind_param("ss", $table, $column);
-    $stmt->execute();
-    $exists = $stmt->get_result()->num_rows > 0;
-    $stmt->close();
-
-    return $cache[$key] = $exists;
-}
-
-
-/*
-| Render a coloured status pill. Works for donation and request
-| statuses (available, requested, completed, cancelled, pending,
-| approved, rejected). Unknown values fall back to a neutral style.
-*/
-
-function render_status_badge($status)
-{
-    $status = strtolower(trim((string) $status));
-
-    $known = [
-        "available", "requested", "completed", "cancelled",
-        "pending",   "approved",  "rejected",
-        "donor",     "recipient", "admin",
-        "active",    "inactive",
-    ];
-
-    $class = in_array($status, $known, true) ? $status : "neutral";
-
-    return '<span class="status ' . e($class) . '">'
-        . e(ucfirst($status))
-        . '</span>';
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| PAGINATION
-|--------------------------------------------------------------------------
-|
-| paginate() reads the ?page= param and returns the LIMIT/OFFSET plus
-| the meta needed to draw links. Pass in the total row count.
-|
-*/
-
-function paginate($total_rows, $per_page = 15)
-{
-    $per_page = max(1, (int) $per_page);
-
-    $total_pages = max(1, (int) ceil($total_rows / $per_page));
-
-    $current = (int) ($_GET["page"] ?? 1);
-
-    if ($current < 1) {
-        $current = 1;
-    }
-
-    if ($current > $total_pages) {
-        $current = $total_pages;
-    }
-
-    $offset = ($current - 1) * $per_page;
-
-    return [
-        "per_page"    => $per_page,
-        "offset"      => $offset,
-        "current"     => $current,
-        "total_pages" => $total_pages,
-        "total_rows"  => (int) $total_rows,
-    ];
-}
-
-
-/*
-| Render prev / numbered / next links. $base_query is an associative
-| array of the current filters to preserve (e.g. ["role" => "donor"]);
-| the page number is added automatically.
-*/
-
-function pagination_links($meta, $base_query = [])
-{
-    if ($meta["total_pages"] <= 1) {
-        return;
-    }
-
-    $make_url = function ($page) use ($base_query) {
-        $base_query["page"] = $page;
-        return "?" . http_build_query($base_query);
-    };
-
-    echo '<div class="pagination">';
-
-    // Prev
-    if ($meta["current"] > 1) {
-        echo '<a href="' . e($make_url($meta["current"] - 1)) . '">&larr; Prev</a>';
-    }
-
-    // Numbered (windowed around current)
-    $start = max(1, $meta["current"] - 2);
-    $end   = min($meta["total_pages"], $meta["current"] + 2);
-
-    for ($p = $start; $p <= $end; $p++) {
-
-        if ($p === $meta["current"]) {
-            echo '<span class="current">' . $p . '</span>';
+/**
+ * Redirect to dashboard if trying to access auth page while logged in
+ */
+function require_logout() {
+    if (is_logged_in()) {
+        if (has_role("admin")) {
+            header("Location: admin-dashboard.php");
+        } elseif (has_role("recipient")) {
+            header("Location: recipient-dashboard.php");
         } else {
-            echo '<a href="' . e($make_url($p)) . '">' . $p . '</a>';
+            header("Location: donor-dashboard.php");
         }
+        exit();
     }
-
-    // Next
-    if ($meta["current"] < $meta["total_pages"]) {
-        echo '<a href="' . e($make_url($meta["current"] + 1)) . '">Next &rarr;</a>';
-    }
-
-    echo '</div>';
 }
+
+/**
+ * Require admin role
+ */
+function require_admin() {
+    require_login();
+    if (!has_role("admin")) {
+        header("Location: index.html");
+        exit();
+    }
+}
+
+/**
+ * Get time ago string (e.g. "2 hours ago")
+ */
+function time_ago($timestamp) {
+    $time = strtotime($timestamp);
+    $diff = time() - $time;
+    
+    if ($diff < 60) {
+        return "just now";
+    } elseif ($diff < 3600) {
+        return intval($diff / 60) . " minutes ago";
+    } elseif ($diff < 86400) {
+        return intval($diff / 3600) . " hours ago";
+    } elseif ($diff < 2592000) {
+        return intval($diff / 86400) . " days ago";
+    } else {
+        return intval($diff / 2592000) . " months ago";
+    }
+}
+
+?>
